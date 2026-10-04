@@ -1,5 +1,7 @@
 from PySide6 import QtCore, QtWidgets
 
+from app.database.connection import connect_postgresql
+
 
 class ConnectionDialog(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -12,7 +14,7 @@ class ConnectionDialog(QtWidgets.QDialog):
         title = QtWidgets.QLabel("Подключение к СУБД")
         title.setObjectName("brand")
         layout.addWidget(title)
-        hint = QtWidgets.QLabel("Выберите СУБД и укажите параметры подключения.")
+        hint = QtWidgets.QLabel("Укажите параметры подключения к PostgreSQL.")
         hint.setObjectName("muted")
         hint.setWordWrap(True)
         layout.addWidget(hint)
@@ -38,38 +40,25 @@ class ConnectionDialog(QtWidgets.QDialog):
         self.sslmode.addItem("Предпочитать SSL", "prefer")
         self.sslmode.addItem("Требовать SSL", "require")
         self.sslmode.addItem("Без SSL", "disable")
-        self.server_fields = []
         for label, widget in (("Сервер", self.host), ("Порт", self.port),
                               ("База данных", self.database), ("Пользователь", self.user),
                               ("Пароль", self.password), ("SSL", self.sslmode)):
             form.addRow(label, widget)
-            self.server_fields.append((form.labelForField(widget), widget))
-        self.sqlite_path = QtWidgets.QLineEdit()
-        self.sqlite_path.setPlaceholderText("Путь к файлу .sqlite3 или .db")
-        self.browse_button = QtWidgets.QPushButton("Обзор…")
-        self.browse_button.clicked.connect(self.browse)
-        self.file_row = QtWidgets.QWidget()
-        file_layout = QtWidgets.QHBoxLayout(self.file_row)
-        file_layout.setContentsMargins(0, 0, 0, 0)
-        file_layout.addWidget(self.sqlite_path, 1)
-        file_layout.addWidget(self.browse_button)
-        form.addRow("Файл БД", self.file_row)
-        self.file_label = form.labelForField(self.file_row)
         layout.addWidget(self.fields)
         for name, widget in (("Сервер", self.host), ("Порт", self.port),
                              ("База данных", self.database), ("Пользователь", self.user),
-                             ("Пароль", self.password), ("Файл SQLite", self.sqlite_path)):
+                             ("Пароль", self.password)):
             widget.setAccessibleName(name)
 
-        self.message = QtWidgets.QLabel("Предпросмотр интерфейса · Подключение к СУБД пока недоступно.")
+        self.connection = None
+        self.message = QtWidgets.QLabel("Введите параметры и проверьте подключение.")
         self.message.setObjectName("muted")
         self.message.setWordWrap(True)
         self.message.setTextFormat(QtCore.Qt.TextFormat.PlainText)
         layout.addWidget(self.message)
         buttons = QtWidgets.QHBoxLayout()
         self.test_button = QtWidgets.QPushButton("Проверить подключение")
-        self.test_button.setEnabled(False)
-        self.test_button.setToolTip("Будет доступно после добавления подключения к СУБД")
+        self.test_button.clicked.connect(lambda: self.try_connect(test_only=True))
         buttons.addWidget(self.test_button)
         buttons.addStretch()
         self.cancel_button = QtWidgets.QPushButton("Отмена")
@@ -77,32 +66,43 @@ class ConnectionDialog(QtWidgets.QDialog):
         buttons.addWidget(self.cancel_button)
         self.connect_button = QtWidgets.QPushButton("Подключиться")
         self.connect_button.setObjectName("primary")
-        self.connect_button.setEnabled(False)
-        self.connect_button.setToolTip("Будет доступно после добавления подключения к СУБД")
+        self.connect_button.clicked.connect(self.try_connect)
         buttons.addWidget(self.connect_button)
         layout.addLayout(buttons)
-        self.update_fields()
+        self.user.setPlaceholderText("postgres")
 
-    def update_fields(self):
-        engine = 'postgresql' 
-        sqlite = engine == "sqlite"
-        for label, widget in self.server_fields:
-            label.setVisible(not sqlite)
-            widget.setVisible(not sqlite)
-        self.file_row.setVisible(sqlite)
-        self.file_label.setVisible(sqlite)
-        if not sqlite:
-            self.port.setValue({"postgresql": 5432, "mysql": 3306, "mariadb": 3306, "mssql": 1433}[engine])
-            self.user.setPlaceholderText("postgres" if engine == "postgresql" else "Имя пользователя")
-            self.sslmode.setEnabled(engine != "mssql")
-            self.sslmode.setToolTip("Настройка SSL для этой СУБД появится позже" if engine == "mssql" else "")
+    def try_connect(self, test_only=False):
+        host = self.host.text().strip()
+        database = self.database.text().strip()
+        user = self.user.text().strip()
+        if not all((host, database, user)):
+            self.message.setText("Заполните сервер, базу данных и пользователя.")
+            return
 
-    def browse(self):
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Выбрать базу SQLite", "", "SQLite (*.sqlite *.sqlite3 *.db);;Все файлы (*)"
-        )
-        if filename:
-            self.sqlite_path.setText(filename)
+        self.test_button.setEnabled(False)
+        self.connect_button.setEnabled(False)
+        try:
+            connection = connect_postgresql(
+                host=host,
+                port=self.port.value(),
+                database=database,
+                user=user,
+                password=self.password.text(),
+                sslmode=self.sslmode.currentData(),
+            )
+        except Exception as error:
+            self.message.setText(f"Не удалось подключиться: {error}")
+        else:
+            if test_only:
+                connection.close()
+                self.message.setText("Подключение успешно проверено.")
+            else:
+                self.connection = connection
+                self.password.clear()
+                self.accept()
+        finally:
+            self.test_button.setEnabled(True)
+            self.connect_button.setEnabled(True)
 
     def reject(self):
         self.password.clear()

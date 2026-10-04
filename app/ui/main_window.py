@@ -24,6 +24,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.preferences = preferences if preferences is not None else Preferences()
         self.history_store = None
         self.storage_error = None
+        self.connection = None
         self._result_sql = None
         directory = Path(data_dir) if data_dir is not None else Path(
             QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.StandardLocation.AppLocalDataLocation)
@@ -88,9 +89,9 @@ class MainWindow(QtWidgets.QMainWindow):
         connection_layout.addWidget(db_icon)
         self.connection_label = QtWidgets.QLabel("СУБД не подключена")
         connection_layout.addWidget(self.connection_label)
-        connection_state = QtWidgets.QLabel("●  Нет подключения")
-        connection_state.setObjectName("muted")
-        connection_layout.addWidget(connection_state)
+        self.connection_state = QtWidgets.QLabel("●  Нет подключения")
+        self.connection_state.setObjectName("muted")
+        connection_layout.addWidget(self.connection_state)
         connection_layout.addStretch()
         connection_details = QtWidgets.QLabel("Версия: —   |   Схема: —")
         connection_details.setObjectName("muted")
@@ -182,7 +183,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def open_connection(self):
         self.nav_buttons["Подключение"].setChecked(True)
         dialog = ConnectionDialog(self)
-        dialog.exec()
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted and dialog.connection is not None:
+            if self.connection is not None:
+                self.connection.close()
+            self.connection = dialog.connection
+            self.connection_label.setText(f"PostgreSQL: {dialog.database.text().strip()}")
+            self.connection_state.setText("●  Подключено")
+            self.connect_button.setText("Переподключиться")
+            self.status.setText("Подключение к PostgreSQL установлено")
         self.nav_group.button({0: 0, 1: 2, 2: 3}[self.pages.currentIndex()]).setChecked(True)
         dialog.deleteLater()
 
@@ -333,6 +341,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editor.refresh_theme(self.preferences.theme)
 
     def closeEvent(self, event):
+        if self.connection is not None:
+            self.connection.close()
         if self.history_store is not None:
             self.history_store.close()
         super().closeEvent(event)
