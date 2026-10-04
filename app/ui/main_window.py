@@ -5,10 +5,14 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from app.storage.history import HistoryStore
 from app.storage.preferences import Preferences
-from app.ui.settings_dialog import SettingsDialog
+from app.ui.dialog.settings_dialog import SettingsDialog
+from app.ui.dialog.connection_dialog import ConnectionDialog
 from app.ui.theme import apply_theme
 from app.ui.widgets.history_panel import HistoryPanel
 from app.ui.widgets.sql_editor import SqlEditor
+from app.ui.widgets.database_panel import DatabasePanel
+from app.ui.widgets.tools_panel import ToolsPanel
+from app.ui.widgets.icons import make_icon
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -38,17 +42,63 @@ class MainWindow(QtWidgets.QMainWindow):
         brand = QtWidgets.QLabel("QueryLens")
         brand.setObjectName("brand")
         header.addWidget(brand)
-        tagline = QtWidgets.QLabel("Рабочее пространство SQL")
-        tagline.setObjectName("muted")
-        header.addWidget(tagline)
+        self.tagline = QtWidgets.QLabel("Рабочее пространство SQL")
+        self.tagline.setObjectName("muted")
+        header.addWidget(self.tagline)
         header.addStretch()
-        badge = QtWidgets.QLabel("ДЕМО")
-        badge.setObjectName("badge")
-        header.addWidget(badge)
+        navigation = QtWidgets.QFrame()
+        navigation.setObjectName("navigation")
+        nav_layout = QtWidgets.QHBoxLayout(navigation)
+        nav_layout.setContentsMargins(4, 4, 4, 4)
+        nav_layout.setSpacing(4)
+        self.nav_group = QtWidgets.QButtonGroup(self)
+        self.nav_buttons = {}
+        for index, (name, icon) in enumerate((("SQL", "sql"), ("Подключение", "database"),
+                                               ("Анализ БД", "chart"), ("Инструменты", "tools"))):
+            button = QtWidgets.QPushButton(name)
+            button.setIcon(make_icon(icon))
+            button.setIconSize(QtCore.QSize(20, 20))
+            button.setObjectName("navButton")
+            button.setCheckable(True)
+            button.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            button.setAccessibleName(name)
+            self.nav_group.addButton(button, index)
+            self.nav_buttons[name] = button
+            nav_layout.addWidget(button)
+        self.nav_group.idClicked.connect(self.navigate)
+        self.nav_buttons["SQL"].setChecked(True)
+        header.addWidget(navigation)
+        header.addStretch()
+        self.badge = QtWidgets.QLabel("ДЕМО")
+        self.badge.setObjectName("badge")
+        header.addWidget(self.badge)
         self.settings_button = QtWidgets.QPushButton("Настройки")
+        self.settings_button.setIcon(make_icon("settings"))
         self.settings_button.clicked.connect(self.open_settings)
         header.addWidget(self.settings_button)
         layout.addLayout(header)
+
+        connection_bar = QtWidgets.QFrame()
+        connection_bar.setObjectName("connectionBar")
+        connection_layout = QtWidgets.QHBoxLayout(connection_bar)
+        connection_layout.setContentsMargins(16, 10, 16, 10)
+        connection_layout.setSpacing(12)
+        db_icon = QtWidgets.QLabel()
+        db_icon.setPixmap(make_icon("database").pixmap(22, 22))
+        connection_layout.addWidget(db_icon)
+        self.connection_label = QtWidgets.QLabel("СУБД не подключена")
+        connection_layout.addWidget(self.connection_label)
+        connection_state = QtWidgets.QLabel("●  Нет подключения")
+        connection_state.setObjectName("muted")
+        connection_layout.addWidget(connection_state)
+        connection_layout.addStretch()
+        connection_details = QtWidgets.QLabel("Версия: —   |   Схема: —")
+        connection_details.setObjectName("muted")
+        connection_layout.addWidget(connection_details)
+        self.connect_button = QtWidgets.QPushButton("Подключить")
+        self.connect_button.clicked.connect(self.open_connection)
+        connection_layout.addWidget(self.connect_button)
+        layout.addWidget(connection_bar)
 
         self.history_panel = HistoryPanel()
         self.history_panel.search.textChanged.connect(self.refresh_history)
@@ -88,7 +138,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.splitter.setStretchFactor(1, 3)
         self.splitter.setStretchFactor(2, 2)
         self.splitter.setSizes([260, 560, 420])
-        layout.addWidget(self.splitter, 1)
+        self.pages = QtWidgets.QStackedWidget()
+        self.pages.addWidget(self.splitter)
+        self.database_panel = DatabasePanel()
+        self.pages.addWidget(self.scroll_page(self.database_panel))
+        self.tools_panel = ToolsPanel()
+        self.pages.addWidget(self.scroll_page(self.tools_panel))
+        self.database_panel.connect_button.clicked.connect(self.open_connection)
+        self.database_panel.tools_button.clicked.connect(lambda: self.navigate(3))
+        self.tools_panel.analysis_button.clicked.connect(lambda: self.navigate(2))
+        self.tools_panel.selection_changed.connect(self.update_tool_selection)
+        self.update_tool_selection()
+        layout.addWidget(self.pages, 1)
 
         self.status = QtWidgets.QLabel("Готово к работе · Ctrl+Enter — анализировать")
         self.status.setObjectName("status")
@@ -106,6 +167,48 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.storage_error:
             self.status.setText("История недоступна. Можно продолжить работу без сохранения.")
             self.status.setToolTip(self.storage_error)
+
+    def navigate(self, index):
+        if index == 1:
+            self.open_connection()
+            return
+        page = {0: 0, 2: 1, 3: 2}[index]
+        self.pages.setCurrentIndex(page)
+        self.nav_group.button(index).setChecked(True)
+        self.status.setVisible(index == 0)
+        if index == 0:
+            self.editor.setFocus()
+
+    def open_connection(self):
+        self.nav_buttons["Подключение"].setChecked(True)
+        dialog = ConnectionDialog(self)
+        dialog.exec()
+        self.nav_group.button({0: 0, 1: 2, 2: 3}[self.pages.currentIndex()]).setChecked(True)
+        dialog.deleteLater()
+
+    def update_tool_selection(self):
+        names = []
+        if self.tools_panel.config_switch.isChecked():
+            names.append("Config Analyzer")
+        if self.tools_panel.hardware_switch.isChecked():
+            names.append("Hardware Analyzer")
+        self.database_panel.set_tools(names)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, "tagline"):
+            self.tagline.setVisible(event.size().width() >= 1250)
+            self.badge.setVisible(event.size().width() >= 1100)
+
+    @staticmethod
+    def scroll_page(widget):
+        scroll = QtWidgets.QScrollArea()
+        scroll.setObjectName("pageScroll")
+        scroll.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(widget)
+        return scroll
 
     @staticmethod
     def make_card(title, badge_text, widget):
@@ -138,6 +241,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status.setText("Запрос изменён · Запустите анализ заново")
 
     def analyze(self):
+        if self.pages.currentIndex() != 0:
+            return
         sql = self.editor.sql_for_analysis()
         self._result_sql = self.editor.toPlainText()
         if not sql.strip():

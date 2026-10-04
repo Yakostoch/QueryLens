@@ -10,7 +10,7 @@ from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 from app.storage.history import HistoryStore
 from app.storage.preferences import Preferences
 from app.ui.main_window import MainWindow
-from app.ui.settings_dialog import SettingsDialog
+from app.ui.dialog.settings_dialog import SettingsDialog
 
 
 class HistoryTests(unittest.TestCase):
