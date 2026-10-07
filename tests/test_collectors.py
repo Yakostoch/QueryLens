@@ -67,7 +67,7 @@ class CollectionInterfaceTests(unittest.TestCase):
         self.window.close()
         for _ in range(100):
             self.app.processEvents()
-            if self.window.collection_worker is None:
+            if self.window.controller.collection.worker is None:
                 break
             QtTest.QTest.qWait(10)
         self.temp.cleanup()
@@ -82,25 +82,36 @@ class CollectionInterfaceTests(unittest.TestCase):
             self.assertFalse(self.window.database_panel.run_button.isEnabled())
             for _ in range(100):
                 self.app.processEvents()
-                if self.window.collection_worker is None:
+                if self.window.controller.collection.worker is None:
                     break
                 QtTest.QTest.qWait(10)
-        self.assertIsNone(self.window.collection_worker)
+        self.assertIsNone(self.window.controller.collection.worker)
         self.assertIn("RAM", self.window.database_panel.report.toPlainText())
-        self.assertEqual(self.window.history_store.search(), [])
+        self.assertEqual(self.window.controller.history.store.search(), [])
 
     def test_close_during_collection_waits_for_worker_without_blocking(self):
         self.window.show()
         self.window.start_collection()
         self.window.close()
-        self.assertTrue(self.window._closing_after_collection)
+        self.assertTrue(self.window.controller.closing)
         for _ in range(100):
             self.app.processEvents()
-            if self.window.collection_worker is None:
+            if self.window.controller.collection.worker is None:
                 break
             QtTest.QTest.qWait(10)
-        self.assertIsNone(self.window.collection_worker)
+        self.assertIsNone(self.window.controller.collection.worker)
         self.assertFalse(self.window.isVisible())
+
+    def test_hardware_button_selects_only_hardware_and_opens_report(self):
+        self.window.tools_panel.config_switch.setChecked(True)
+        self.window.tools_panel.hardware_switch.setChecked(False)
+        self.window.navigate(3)
+        with patch.object(self.window.controller, "collect") as collect:
+            self.window.tools_panel.hardware_button.click()
+        collect.assert_called_once_with(False, True)
+        self.assertFalse(self.window.tools_panel.config_switch.isChecked())
+        self.assertTrue(self.window.tools_panel.hardware_switch.isChecked())
+        self.assertEqual(self.window.pages.currentIndex(), 1)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from PySide6 import QtWidgets
 
 
 class SettingsDialog(QtWidgets.QDialog):
-    def __init__(self, preferences, parent=None):
+    def __init__(self, values, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Настройки QueryLens")
         self.setMinimumWidth(420)
@@ -17,13 +17,13 @@ class SettingsDialog(QtWidgets.QDialog):
         self.theme = QtWidgets.QComboBox()
         self.theme.addItem("Тёмная", "dark")
         self.theme.addItem("Светлая", "light")
-        self.theme.setCurrentIndex(self.theme.findData(preferences.theme))
+        self.theme.setCurrentIndex(self.theme.findData(values.theme))
         self.font_size = QtWidgets.QSpinBox()
         self.font_size.setRange(10, 20)
         self.font_size.setSuffix(" пт")
-        self.font_size.setValue(preferences.font_size)
+        self.font_size.setValue(values.font_size)
         self.history = QtWidgets.QCheckBox("Сохранять запуски анализа")
-        self.history.setChecked(preferences.save_history)
+        self.history.setChecked(values.save_history)
         form.addRow("Тема", self.theme)
         form.addRow("Размер шрифта SQL", self.font_size)
         form.addRow(self.history)

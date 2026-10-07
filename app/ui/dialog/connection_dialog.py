@@ -1,9 +1,8 @@
 from PySide6 import QtCore, QtWidgets
 
-from app.database.connection import connect_postgresql
-
-
 class ConnectionDialog(QtWidgets.QDialog):
+    connection_requested = QtCore.Signal(object, bool)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Подключение к СУБД")
@@ -50,8 +49,6 @@ class ConnectionDialog(QtWidgets.QDialog):
                              ("Пароль", self.password)):
             widget.setAccessibleName(name)
 
-        self.connection = None
-        self.parameters = None
         self.message = QtWidgets.QLabel("Введите параметры и проверьте подключение.")
         self.message.setObjectName("muted")
         self.message.setWordWrap(True)
@@ -59,7 +56,7 @@ class ConnectionDialog(QtWidgets.QDialog):
         layout.addWidget(self.message)
         buttons = QtWidgets.QHBoxLayout()
         self.test_button = QtWidgets.QPushButton("Проверить подключение")
-        self.test_button.clicked.connect(lambda: self.try_connect(test_only=True))
+        self.test_button.clicked.connect(lambda: self.request_connection(test_only=True))
         buttons.addWidget(self.test_button)
         buttons.addStretch()
         self.cancel_button = QtWidgets.QPushButton("Отмена")
@@ -67,42 +64,31 @@ class ConnectionDialog(QtWidgets.QDialog):
         buttons.addWidget(self.cancel_button)
         self.connect_button = QtWidgets.QPushButton("Подключиться")
         self.connect_button.setObjectName("primary")
-        self.connect_button.clicked.connect(self.try_connect)
+        self.connect_button.clicked.connect(lambda: self.request_connection(test_only=False))
         buttons.addWidget(self.connect_button)
         layout.addLayout(buttons)
         self.user.setPlaceholderText("postgres")
 
-    def try_connect(self, test_only=False):
-        host = self.host.text().strip()
-        database = self.database.text().strip()
-        user = self.user.text().strip()
-        if not all((host, database, user)):
-            self.message.setText("Заполните сервер, базу данных и пользователя.")
-            return
+    def request_connection(self, test_only=False):
+        self.connection_requested.emit(dict(
+            host=self.host.text(), port=self.port.value(), database=self.database.text(),
+            user=self.user.text(), password=self.password.text(), sslmode=self.sslmode.currentData(),
+        ), test_only)
 
-        self.test_button.setEnabled(False)
-        self.connect_button.setEnabled(False)
-        try:
-            parameters = dict(host=host, port=self.port.value(), database=database,
-                              user=user, password=self.password.text(), sslmode=self.sslmode.currentData())
-            connection = connect_postgresql(**parameters)
-        except Exception as error:
-            if isinstance(error, ValueError):
-                self.message.setText(str(error))
-            else:
-                self.message.setText(f"Не удалось подключиться ({type(error).__name__}). Проверьте сервер, имя базы, роль и пароль.")
-        else:
-            if test_only:
-                connection.close()
-                self.message.setText("Подключение успешно проверено.")
-            else:
-                self.connection = connection
-                self.parameters = parameters
-                self.password.clear()
-                self.accept()
-        finally:
-            self.test_button.setEnabled(True)
-            self.connect_button.setEnabled(True)
+    def set_busy(self, busy):
+        self.fields.setEnabled(not busy)
+        self.test_button.setEnabled(not busy)
+        self.connect_button.setEnabled(not busy)
+
+    def show_error(self, message):
+        self.message.setText(message)
+
+    def show_test_success(self):
+        self.message.setText("Подключение успешно проверено.")
+
+    def show_connected(self, database):
+        self.password.clear()
+        self.accept()
 
     def reject(self):
         self.password.clear()

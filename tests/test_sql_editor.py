@@ -1,3 +1,4 @@
+from analysis_support import connect_fake_database, wait_analysis
 import os
 import tempfile
 import unittest
@@ -94,15 +95,17 @@ class EditorTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             settings = QtCore.QSettings(str(Path(directory) / "settings.ini"), QtCore.QSettings.Format.IniFormat)
             window = MainWindow(directory, Preferences(settings))
+            connect_fake_database(window.controller)
             try:
                 window.editor.setPlainText("SELECT 1; SELECT 2;")
                 cursor = window.editor.textCursor()
                 cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
                 window.editor.setTextCursor(cursor)
                 window.analyze()
-                self.assertEqual(window.history_store.search()[0]["sql"], "SELECT 2;")
+                wait_analysis(window.controller)
+                self.assertEqual(window.controller.history.store.search()[0]["sql"], "SELECT 2;")
                 result = window.output.toPlainText()
-                window.preferences.save("light", 12, True)
+                window.controller.settings.save("light", 12, True)
                 window.apply_preferences()
                 self.app.processEvents()
                 self.assertEqual(window.output.toPlainText(), result)
@@ -110,7 +113,8 @@ class EditorTests(unittest.TestCase):
                 cursor.setPosition(8, QtGui.QTextCursor.MoveMode.KeepAnchor)
                 window.editor.setTextCursor(cursor)
                 window.analyze()
-                self.assertEqual(window.history_store.search()[0]["sql"], "SELECT 1")
+                wait_analysis(window.controller)
+                self.assertEqual(window.controller.history.store.search()[0]["sql"], "SELECT 1")
             finally:
                 window.close()
 

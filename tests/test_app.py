@@ -1,3 +1,4 @@
+from analysis_support import connect_fake_database, wait_analysis
 import os
 import tempfile
 import unittest
@@ -50,6 +51,7 @@ class InterfaceTests(unittest.TestCase):
         self.settings_path = str(Path(self.temp.name) / "settings.ini")
         self.preferences = Preferences(QtCore.QSettings(self.settings_path, QtCore.QSettings.Format.IniFormat))
         self.window = MainWindow(self.temp.name, self.preferences)
+        connect_fake_database(self.window.controller)
         self.window.show()
         self.app.processEvents()
 
@@ -61,10 +63,12 @@ class InterfaceTests(unittest.TestCase):
     def test_analysis_history_restore_and_opt_out(self):
         window = self.window
         window.analyze_button.click()
-        self.assertEqual(window.history_store.search(), [])
+        wait_analysis(window.controller)
+        self.assertEqual(window.controller.history.store.search(), [])
         sql = "SELECT id, name\nFROM users\nWHERE active = 1;"
         window.editor.setPlainText(sql)
         window.analyze_button.click()
+        wait_analysis(window.controller)
         result = window.output.toPlainText()
         self.assertTrue(window.output.isReadOnly())
         self.assertEqual(window.history_panel.items.count(), 1)
@@ -77,9 +81,10 @@ class InterfaceTests(unittest.TestCase):
         self.preferences.save("light", 16, False)
         window.apply_preferences()
         window.analyze_button.click()
-        self.assertEqual(len(window.history_store.search()), 1)
+        wait_analysis(window.controller)
+        self.assertEqual(len(window.controller.history.store.search()), 1)
         window.history_panel.delete_button.click()
-        self.assertEqual(window.history_store.search(), [])
+        self.assertEqual(window.controller.history.store.search(), [])
         saved = Preferences(QtCore.QSettings(self.settings_path, QtCore.QSettings.Format.IniFormat))
         self.assertEqual(saved.theme, "light")
         self.assertEqual(saved.font_size, 16)
@@ -92,9 +97,11 @@ class InterfaceTests(unittest.TestCase):
         self.assertEqual(window.editor.toPlainText(), "    ")
         window.editor.setPlainText("SELECT id, name\nFROM users\nWHERE active = 1;")
         window.analyze_button.click()
+        wait_analysis(window.controller)
         window.editor.setFocus()
         QtTest.QTest.keyClick(window.editor, QtCore.Qt.Key.Key_Return, QtCore.Qt.KeyboardModifier.ControlModifier)
-        self.assertEqual(len(window.history_store.search()), 2)
+        wait_analysis(window.controller)
+        self.assertEqual(len(window.controller.history.store.search()), 2)
         preview_dir = Path(__file__).resolve().parents[1] / ".artifacts"
         preview_dir.mkdir(exist_ok=True)
         for theme in ("dark", "light"):

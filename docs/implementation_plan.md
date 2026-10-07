@@ -3,7 +3,7 @@
 ## Первый эксперимент: ветка feature/local-collectors
 
 В этой ветке работают Config Analyzer и Hardware Analyzer. Они собирают факты;
-анализ введённого SQL и локальная LLM ещё не реализованы. Ввод пароля нужен только
+план введённого SQL получается через EXPLAIN; локальная LLM ещё не реализована. Ввод пароля нужен только
 для локального соединения PostgreSQL, пароль не записывается в отчёт и настройки.
 Он остаётся в памяти программы для повторного сбора до закрытия/переподключения.
 
@@ -33,13 +33,18 @@
 | Файл / функция | Задача и смысл |
 |---|---|
 | `app/database/connection.py`, `connect_postgresql()` | Проверяет локальный адрес и открывает read-only соединение с таймаутом; адрес закреплён через hostaddr, DNS не требуется. |
-| `app/collectors/postgres.py`, `collect_postgres()` | Через psycopg читает 33 настройки из pg_settings, статистику базы и каталоги таблиц/индексов; создаёт своё соединение в рабочем потоке. |
+| `app/collectors/postgres.py`, `collect_postgres()` | Адаптер прежнего отчёта: объединяет отдельные сборщики configuration и metadata. |
+| `app/collectors/configuration.py`, `collect_configuration()` | Читает настройки pg_settings текущей диагностической сессии. |
+| `app/collectors/metadata.py`, `collect_metadata()` | Читает версию, статистику всей БД и каталоги таблиц/индексов. |
+| `app/collectors/explain.py`, `collect_explain()` | Получает JSON-план без ANALYZE по кнопке «Анализировать» через AnalysisWorker и AnalysisService. |
+| `app/collectors/statements.py`, `collect_statements()` | Читает pg_stat_statements по известному queryid текущей базы; пока не вызывается из UI. |
+| `app/services/collection_service.py`, `collect_features()` | Независимо собирает пять источников по схеме анализа; возвращает данные и статус каждого. |
 | `app/collectors/system.py`, `collect_system()` | Через psutil получает ядра, RAM и пять снимков CPU/RAM/swap/I/O ОС. platform сообщает ОС и архитектуру. |
 | `io_rates()` | Разность накопленных дисковых счётчиков делит на реальный интервал time.monotonic(); это активность, не предельная скорость диска. |
 | `app/services/collection_service.py`, `collect_report()` | Запускает выбранные модули; ошибка одного не скрывает результат другого. В результат не включает параметры подключения. |
-| `app/ui/collection_worker.py`, `CollectionWorker.run()` | QThread выполняет сбор вне интерфейса; сигнал report_ready передаёт результат главному потоку. |
+| `app/workers/collection_worker.py`, `CollectionWorker.run()` | QThread выполняет сбор вне интерфейса; сигнал report_ready передаёт результат главному потоку. |
 | `app/services/report_formatter.py`, `format_report()` | Показывает исходные единицы, понятные размеры и пояснения; не выдумывает диагноз. |
-| `MainWindow.start_collection()` | Обрабатывает кнопку, запускает worker; collection_ready() показывает результат; cancel_collection() запрашивает остановку. |
+| `CollectionController.start()` | Проверяет возможность запуска и управляет worker; окно передаёт выбор пользователя и отображает сигналы результата. |
 | `DatabasePanel.show_report()` | Показывает структуру и отчёт в памяти; пользователь может выделить и скопировать текст. |
 
 Библиотеки: PySide6 — интерфейс и потоки, psycopg — PostgreSQL, psutil — ОС.
