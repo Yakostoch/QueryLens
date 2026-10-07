@@ -1,5 +1,4 @@
 from PySide6 import QtCore, QtWidgets
-from app.ui.widgets.icons import make_icon
 
 
 class DatabasePanel(QtWidgets.QWidget):
@@ -15,23 +14,28 @@ class DatabasePanel(QtWidgets.QWidget):
         header.addStretch()
         self.tools_button = QtWidgets.QPushButton("Выбор инструментов")
         header.addWidget(self.tools_button)
-        self.run_button = QtWidgets.QPushButton("Анализировать БД")
+        self.run_button = QtWidgets.QPushButton("Собрать показатели")
         self.run_button.setObjectName("primary")
         self.run_button.setEnabled(False)
-        self.run_button.setToolTip("Запуск анализа появится после подключения анализаторов")
+        self.run_button.setToolTip("Собрать выбранные показатели; SQL из редактора не выполняется")
         header.addWidget(self.run_button)
+        self.cancel_button = QtWidgets.QPushButton("Отменить")
+        self.cancel_button.hide()
+        header.addWidget(self.cancel_button)
         layout.addLayout(header)
-        self.hint = QtWidgets.QLabel("Обзор структуры базы данных, конфигурации СУБД и ресурсов сервера.")
+        self.hint = QtWidgets.QLabel("Выберите инструменты. Config требует локальную БД; Hardware можно запустить отдельно.")
         self.hint.setObjectName("muted")
         self.hint.setWordWrap(True)
         layout.addWidget(self.hint)
         metrics = QtWidgets.QHBoxLayout()
         metrics.setSpacing(14)
+        self.metric_values = {}
         for title, caption in (("Таблицы", "Структура базы данных"),
                                ("Индексы", "Доступные индексы"), ("Размер БД", "Объём данных")):
             card, body = self.make_card(title)
             value = QtWidgets.QLabel("—")
             value.setObjectName("metricValue")
+            self.metric_values[title] = value
             body.addWidget(value)
             hint = QtWidgets.QLabel(caption)
             hint.setObjectName("muted")
@@ -50,29 +54,20 @@ class DatabasePanel(QtWidgets.QWidget):
         self.tables.header().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         structure, structure_layout = self.make_card("Структура базы данных")
         structure_layout.addWidget(self.tables, 1)
-        structure_hint = QtWidgets.QLabel("Схемы, таблицы и индексы появятся после подключения СУБД.")
+        structure_hint = QtWidgets.QLabel("Структура появится после сбора Config Analyzer. Число индексов включает записи каталогов разделов.")
         structure_hint.setWordWrap(True)
         structure_hint.setObjectName("muted")
         structure_layout.addWidget(structure_hint)
-        report, report_layout = self.make_card("Результаты анализа")
+        report, report_layout = self.make_card("Собранные факты и пояснения")
         report_layout.setSpacing(8)
-        report_layout.addStretch()
-        icon = QtWidgets.QLabel()
-        icon.setPixmap(make_icon("chart", "#4b8cff").pixmap(44, 44))
-        icon.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        report_layout.addWidget(icon)
-        empty_title = QtWidgets.QLabel("Подключите базу данных")
-        empty_title.setObjectName("section")
-        empty_title.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        report_layout.addWidget(empty_title)
-        empty_hint = QtWidgets.QLabel("Здесь появятся показатели,\nрезультаты проверок и рекомендации.")
-        empty_hint.setObjectName("muted")
-        empty_hint.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        report_layout.addWidget(empty_hint)
+        self.report = QtWidgets.QPlainTextEdit()
+        self.report.setReadOnly(True)
+        self.report.setAccessibleName("Локальный отчёт компьютера и PostgreSQL")
+        self.report.setPlaceholderText("Нажмите «Собрать показатели».\nHardware: пять измерений примерно за 5 секунд.\nSQL и LLM пока не подключены.")
+        report_layout.addWidget(self.report, 1)
         self.connect_button = QtWidgets.QPushButton("Подключить СУБД")
         self.connect_button.setObjectName("primary")
         report_layout.addWidget(self.connect_button, 0, QtCore.Qt.AlignmentFlag.AlignHCenter)
-        report_layout.addStretch()
         tools_title = QtWidgets.QLabel("Выбранные инструменты")
         tools_title.setObjectName("section")
         report_layout.addWidget(tools_title)
@@ -86,7 +81,7 @@ class DatabasePanel(QtWidgets.QWidget):
             row.addWidget(state)
             self.tool_states[name] = state
             report_layout.addLayout(row)
-        preview = QtWidgets.QLabel("Предпросмотр · Анализаторы пока не подключены")
+        preview = QtWidgets.QLabel("Локальный сбор · Отчёт в памяти · Диагностика SQL — следующий этап")
         preview.setObjectName("muted")
         preview.setWordWrap(True)
         report_layout.addWidget(preview)
@@ -110,3 +105,25 @@ class DatabasePanel(QtWidgets.QWidget):
     def set_tools(self, names):
         for name, label in self.tool_states.items():
             label.setText("Выбран" if name in names else "Выключен")
+
+    def clear_report(self):
+        self.report.clear()
+        self.tables.clear()
+        for value in self.metric_values.values():
+            value.setText("—")
+
+    def show_report(self, report):
+        from app.services.report_formatter import format_report, size
+
+        self.clear_report()
+        self.report.setPlainText(format_report(report))
+        db = report["postgres"]
+        if db:
+            rows = db["tables"]
+            self.metric_values["Таблицы"].setText(str(len(rows)))
+            self.metric_values["Индексы"].setText(str(sum(row["indexes"] for row in rows)))
+            self.metric_values["Размер БД"].setText(size(db.get("database_size_bytes")))
+            for row in rows:
+                self.tables.addTopLevelItem(QtWidgets.QTreeWidgetItem(
+                    [f"{row['schema']}.{row['name']}", str(row["columns"]), str(row["indexes"])]
+                ))
