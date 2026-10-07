@@ -13,6 +13,7 @@ from app.ui.widgets.sql_editor import SqlEditor
 from app.ui.widgets.database_panel import DatabasePanel
 from app.ui.widgets.tools_panel import ToolsPanel
 from app.ui.widgets.icons import make_icon
+from app.ui.collection_worker import CollectionWorker
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -25,6 +26,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.history_store = None
         self.storage_error = None
         self.connection = None
+        self.connection_parameters = None
+        self.collection_worker = None
+        self._closing_after_collection = False
         self._result_sql = None
         directory = Path(data_dir) if data_dir is not None else Path(
             QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.StandardLocation.AppLocalDataLocation)
@@ -147,6 +151,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pages.addWidget(self.scroll_page(self.tools_panel))
         self.database_panel.connect_button.clicked.connect(self.open_connection)
         self.database_panel.tools_button.clicked.connect(lambda: self.navigate(3))
+        self.database_panel.run_button.clicked.connect(self.start_collection)
+        self.database_panel.cancel_button.clicked.connect(self.cancel_collection)
         self.tools_panel.analysis_button.clicked.connect(lambda: self.navigate(2))
         self.tools_panel.selection_changed.connect(self.update_tool_selection)
         self.update_tool_selection()
@@ -181,16 +187,21 @@ class MainWindow(QtWidgets.QMainWindow):
             self.editor.setFocus()
 
     def open_connection(self):
+        if self.collection_worker is not None:
+            return
         self.nav_buttons["Подключение"].setChecked(True)
         dialog = ConnectionDialog(self)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted and dialog.connection is not None:
             if self.connection is not None:
                 self.connection.close()
             self.connection = dialog.connection
+            self.connection_parameters = dialog.parameters
             self.connection_label.setText(f"PostgreSQL: {dialog.database.text().strip()}")
             self.connection_state.setText("●  Подключено")
             self.connect_button.setText("Переподключиться")
             self.status.setText("Подключение к PostgreSQL установлено")
+            self.database_panel.clear_report()
+            self.refresh_collection_button()
         self.nav_group.button({0: 0, 1: 2, 2: 3}[self.pages.currentIndex()]).setChecked(True)
         dialog.deleteLater()
 
@@ -201,6 +212,54 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.tools_panel.hardware_switch.isChecked():
             names.append("Hardware Analyzer")
         self.database_panel.set_tools(names)
+        self.refresh_collection_button()
+
+    def refresh_collection_button(self):
+        config = self.tools_panel.config_switch.isChecked()
+        hardware = self.tools_panel.hardware_switch.isChecked()
+        self.database_panel.run_button.setEnabled(
+            self.collection_worker is None and (config or hardware)
+            and (not config or self.connection_parameters is not None)
+        )
+
+    def start_collection(self):
+        if not self.database_panel.run_button.isEnabled() or self.collection_worker is not None:
+            return
+        config = self.tools_panel.config_switch.isChecked()
+        hardware = self.tools_panel.hardware_switch.isChecked()
+        self.database_panel.clear_report()
+        self.database_panel.hint.setText("Собираю локальные показатели… Hardware: примерно 5 секунд. SQL не выполняется.")
+        self.collection_worker = CollectionWorker(self.connection_parameters, config, hardware, self)
+        self.collection_worker.report_ready.connect(self.collection_ready)
+        self.collection_worker.finished.connect(self.collection_finished)
+        self.database_panel.cancel_button.show()
+        self.tools_panel.setEnabled(False)
+        self.refresh_collection_button()
+        self.collection_worker.start()
+
+    def cancel_collection(self):
+        if self.collection_worker is not None:
+            self.collection_worker.requestInterruption()
+            self.database_panel.hint.setText("Отмена… Текущий запрос к каталогам ограничен таймаутом.")
+
+    def collection_ready(self, report):
+        if self._closing_after_collection:
+            return
+        self.database_panel.show_report(report)
+        self.database_panel.hint.setText("Сбор завершён с ошибками отдельных модулей." if report["errors"]
+                                         else "Сбор завершён. Ниже — факты, а не диагноз конкретного SQL.")
+
+    def collection_finished(self):
+        interrupted = self.collection_worker.isInterruptionRequested()
+        self.collection_worker.deleteLater()
+        self.collection_worker = None
+        self.database_panel.cancel_button.hide()
+        self.tools_panel.setEnabled(True)
+        self.refresh_collection_button()
+        if interrupted:
+            self.database_panel.hint.setText("Сбор отменён. Можно запустить заново.")
+        if self._closing_after_collection:
+            self.close()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -341,6 +400,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editor.refresh_theme(self.preferences.theme)
 
     def closeEvent(self, event):
+        if self.collection_worker is not None:
+            self._closing_after_collection = True
+            self.cancel_collection()
+            event.ignore()
+            return
+        self.connection_parameters = None
         if self.connection is not None:
             self.connection.close()
         if self.history_store is not None:

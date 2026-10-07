@@ -14,7 +14,7 @@ class ConnectionDialog(QtWidgets.QDialog):
         title = QtWidgets.QLabel("Подключение к СУБД")
         title.setObjectName("brand")
         layout.addWidget(title)
-        hint = QtWidgets.QLabel("Укажите параметры подключения к PostgreSQL.")
+        hint = QtWidgets.QLabel("Локальная PostgreSQL: localhost, 127.0.0.1 или ::1. Пароль используется только в памяти.")
         hint.setObjectName("muted")
         hint.setWordWrap(True)
         layout.addWidget(hint)
@@ -51,6 +51,7 @@ class ConnectionDialog(QtWidgets.QDialog):
             widget.setAccessibleName(name)
 
         self.connection = None
+        self.parameters = None
         self.message = QtWidgets.QLabel("Введите параметры и проверьте подключение.")
         self.message.setObjectName("muted")
         self.message.setWordWrap(True)
@@ -82,22 +83,21 @@ class ConnectionDialog(QtWidgets.QDialog):
         self.test_button.setEnabled(False)
         self.connect_button.setEnabled(False)
         try:
-            connection = connect_postgresql(
-                host=host,
-                port=self.port.value(),
-                database=database,
-                user=user,
-                password=self.password.text(),
-                sslmode=self.sslmode.currentData(),
-            )
+            parameters = dict(host=host, port=self.port.value(), database=database,
+                              user=user, password=self.password.text(), sslmode=self.sslmode.currentData())
+            connection = connect_postgresql(**parameters)
         except Exception as error:
-            self.message.setText(f"Не удалось подключиться: {error}")
+            if isinstance(error, ValueError):
+                self.message.setText(str(error))
+            else:
+                self.message.setText(f"Не удалось подключиться ({type(error).__name__}). Проверьте сервер, имя базы, роль и пароль.")
         else:
             if test_only:
                 connection.close()
                 self.message.setText("Подключение успешно проверено.")
             else:
                 self.connection = connection
+                self.parameters = parameters
                 self.password.clear()
                 self.accept()
         finally:

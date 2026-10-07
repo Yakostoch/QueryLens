@@ -14,24 +14,24 @@ class ToolsPanel(QtWidgets.QWidget):
         title = QtWidgets.QLabel("Инструменты анализа")
         title.setObjectName("brand")
         layout.addWidget(title)
-        hint = QtWidgets.QLabel("Выберите модули для будущего анализа базы данных.")
+        hint = QtWidgets.QLabel("Выберите модули локального сбора и перейдите к анализу БД.")
         hint.setObjectName("muted")
         hint.setWordWrap(True)
         layout.addWidget(hint)
         self.config_switch = self.add_tool(
             layout, "Config Analyzer", "Конфигурация СУБД",
-            "Проверка параметров СУБД: память, соединения и настройки планировщика запросов.",
+            "Сбор 33 параметров PostgreSQL, статистики и структуры. Значения не являются готовым диагнозом.",
             True,
         )
         self.hardware_switch = self.add_tool(
             layout, "Hardware Analyzer", "Оборудование",
-            "Оценка ресурсов сервера: процессор, оперативная память и дисковая подсистема.",
+            "Пять измерений CPU, RAM, swap и I/O этого компьютера. Можно запускать без PostgreSQL.",
             False,
         )
         self.summary = QtWidgets.QLabel()
         self.summary.setObjectName("muted")
         layout.addWidget(self.summary)
-        preview = QtWidgets.QLabel("Предпросмотр · Анализаторы пока не подключены")
+        preview = QtWidgets.QLabel("Сборщики подключены · Анализ SQL и локальная LLM будут добавлены следующим этапом")
         preview.setObjectName("muted")
         preview.setWordWrap(True)
         layout.addWidget(preview)
