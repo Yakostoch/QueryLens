@@ -5,6 +5,7 @@ from app.services.collection_service import collect_report
 
 class CollectionWorker(QtCore.QThread):
     report_ready = QtCore.Signal(object)
+    failed = QtCore.Signal(str)
 
     def __init__(self, parameters, config, hardware, parent=None):
         super().__init__(parent)
@@ -18,5 +19,7 @@ class CollectionWorker(QtCore.QThread):
             )
             if report is not None and not self.isInterruptionRequested():
                 self.report_ready.emit(report)
+        except Exception as error:
+            self.failed.emit(type(error).__name__)
         finally:
             self.parameters = None

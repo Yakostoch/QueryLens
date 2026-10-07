@@ -1,5 +1,5 @@
 """Перевод измеренных фактов в читаемый отчёт; диагнозов по одним настройкам нет."""
-from app.collectors.postgres import SETTINGS
+from app.collectors.configuration import SETTINGS
 
 
 def size(value):

@@ -4,10 +4,12 @@ from PySide6 import QtGui
 COLORS = {
     "dark": dict(bg="#0b1422", panel="#121e30", field="#0d1726", text="#e0e8ff",
                  muted="#99b2d9", border="#24364f", accent="#4b8cff", button="#2459ed",
-                 hover="#182e55", selection="#233f73", statement="#b5e875"),
+                 hover="#182e55", selection="#233f73", statement="#b5e875",
+                 success="#15803d", success_hover="#166534", success_text="#86efac", success_bg="#15382b"),
     "light": dict(bg="#f0f3f9", panel="#ffffff", field="#f8faff", text="#1c2940",
                   muted="#596b85", border="#d6deeb", accent="#345fc5", button="#345fc5",
-                  hover="#e5edff", selection="#cfdefc", statement="#6b9e19"),
+                  hover="#e5edff", selection="#cfdefc", statement="#6b9e19",
+                  success="#15803d", success_hover="#166534", success_text="#166534", success_bg="#dcfce7"),
 }
 
 
@@ -32,6 +34,10 @@ def apply_theme(app, name):
         QLabel#metricValue { font-size: 28px; font-weight: 600; color: %(accent)s; }
         QLabel#badge { color: %(accent)s; background: %(hover)s;
                        border-radius: 6px; padding: 5px 10px; }
+        QLabel#toolState { color: %(muted)s; background: %(field)s;
+            border: 1px solid %(border)s; border-radius: 6px; padding: 4px 10px; }
+        QLabel#toolState[selected="true"] { color: %(success_text)s;
+            background: %(success_bg)s; border-color: %(success)s; }
         QFrame#card { background: %(panel)s; border: 1px solid %(border)s;
                        border-radius: 12px; }
         QFrame#navigation, QFrame#connectionBar { background: %(panel)s;
@@ -52,7 +58,11 @@ def apply_theme(app, name):
         QPushButton:hover { background: %(hover)s; border-color: %(accent)s; }
         QPushButton#primary { background: %(button)s; color: white; border-color: %(button)s; }
         QPushButton#primary:hover { background: #426fd8; }
-        QPushButton:disabled, QPushButton#primary:disabled {
+        QPushButton#collectButton { background: %(success)s; color: white;
+            border-color: %(success)s; }
+        QPushButton#collectButton:hover { background: %(success_hover)s; }
+        QPushButton#collectButton:pressed { background: %(success_hover)s; }
+        QPushButton:disabled, QPushButton#primary:disabled, QPushButton#collectButton:disabled {
             background: %(field)s; color: %(muted)s; border-color: %(border)s; }
         QHeaderView::section { background: %(panel)s; color: %(muted)s;
             border: none; border-bottom: 1px solid %(border)s; padding: 10px 8px; }

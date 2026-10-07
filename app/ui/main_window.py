@@ -1,10 +1,6 @@
-import sqlite3
-from pathlib import Path
-
 from PySide6 import QtCore, QtGui, QtWidgets
 
-from app.storage.history import HistoryStore
-from app.storage.preferences import Preferences
+from app.controllers.workspace_controller import WorkspaceController
 from app.ui.dialog.settings_dialog import SettingsDialog
 from app.ui.dialog.connection_dialog import ConnectionDialog
 from app.ui.theme import apply_theme
@@ -13,30 +9,16 @@ from app.ui.widgets.sql_editor import SqlEditor
 from app.ui.widgets.database_panel import DatabasePanel
 from app.ui.widgets.tools_panel import ToolsPanel
 from app.ui.widgets.icons import make_icon
-from app.ui.collection_worker import CollectionWorker
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self, data_dir=None, preferences=None):
+    def __init__(self, data_dir=None, preferences=None, controller=None):
         super().__init__()
         self.setWindowTitle("QueryLens — SQL Workspace")
         self.resize(1320, 800)
         self.setMinimumSize(960, 600)
-        self.preferences = preferences if preferences is not None else Preferences()
-        self.history_store = None
-        self.storage_error = None
-        self.connection = None
-        self.connection_parameters = None
-        self.collection_worker = None
-        self._closing_after_collection = False
+        self.controller = controller if controller is not None else WorkspaceController(data_dir, preferences, self)
         self._result_sql = None
-        directory = Path(data_dir) if data_dir is not None else Path(
-            QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.StandardLocation.AppLocalDataLocation)
-        )
-        try:
-            self.history_store = HistoryStore(directory / "history.sqlite3")
-        except (OSError, sqlite3.Error) as error:
-            self.storage_error = str(error)
 
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
@@ -74,7 +56,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.nav_buttons["SQL"].setChecked(True)
         header.addWidget(navigation)
         header.addStretch()
-        self.badge = QtWidgets.QLabel("ДЕМО")
+        self.badge = QtWidgets.QLabel("EXPLAIN")
         self.badge.setObjectName("badge")
         header.addWidget(self.badge)
         self.settings_button = QtWidgets.QPushButton("Настройки")
@@ -129,7 +111,7 @@ class MainWindow(QtWidgets.QMainWindow):
         editor_footer.addWidget(self.analyze_button)
         editor_layout.addLayout(editor_footer)
         output_card, output_layout = self.make_card("Результат анализа", "Вывод", self.output)
-        output_hint = QtWidgets.QLabel("Демо-режим · SQL не выполняется")
+        output_hint = QtWidgets.QLabel("План PostgreSQL · EXPLAIN без ANALYZE")
         output_hint.setObjectName("muted")
         output_layout.addWidget(output_hint)
 
@@ -154,6 +136,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.database_panel.run_button.clicked.connect(self.start_collection)
         self.database_panel.cancel_button.clicked.connect(self.cancel_collection)
         self.tools_panel.analysis_button.clicked.connect(lambda: self.navigate(2))
+        self.tools_panel.hardware_button.clicked.connect(self.start_hardware_collection)
         self.tools_panel.selection_changed.connect(self.update_tool_selection)
         self.update_tool_selection()
         layout.addWidget(self.pages, 1)
@@ -167,13 +150,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self.editor.context_changed.connect(self.update_position)
         self.editor.textChanged.connect(self.mark_output_stale)
         self.editor.font_size_changed.connect(self.save_editor_font_size)
+        self.controller.history.entries_changed.connect(self.history_panel.set_entries)
+        self.controller.history.failed.connect(self.show_storage_error)
+        self.controller.settings.changed.connect(self.apply_preferences)
+        self.controller.settings.failed.connect(self.show_settings_error)
+        self.controller.connection.connected.connect(self.show_connected)
+        self.controller.analysis_ready.connect(self.show_analysis)
+        self.controller.analysis_failed.connect(self.show_analysis_error)
+        self.controller.analysis_busy_changed.connect(self.show_analysis_busy)
+        self.controller.collection.started.connect(self.collection_started)
+        self.controller.collection.report_ready.connect(self.collection_ready)
+        self.controller.collection.failed.connect(self.show_collection_error)
+        self.controller.collection.finished.connect(self.collection_finished)
+        self.controller.close_ready.connect(self.close)
         self.apply_preferences()
         self.refresh_history()
         self.update_position()
         self.editor.setFocus()
-        if self.storage_error:
+        if self.controller.history.initial_error:
             self.status.setText("История недоступна. Можно продолжить работу без сохранения.")
-            self.status.setToolTip(self.storage_error)
+            self.status.setToolTip(self.controller.history.initial_error)
 
     def navigate(self, index):
         if index == 1:
@@ -187,23 +183,33 @@ class MainWindow(QtWidgets.QMainWindow):
             self.editor.setFocus()
 
     def open_connection(self):
-        if self.collection_worker is not None:
+        if self.controller.collection.busy or self.controller.closing or self.controller.analysis_worker is not None:
             return
         self.nav_buttons["Подключение"].setChecked(True)
         dialog = ConnectionDialog(self)
-        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted and dialog.connection is not None:
-            if self.connection is not None:
-                self.connection.close()
-            self.connection = dialog.connection
-            self.connection_parameters = dialog.parameters
-            self.connection_label.setText(f"PostgreSQL: {dialog.database.text().strip()}")
-            self.connection_state.setText("●  Подключено")
-            self.connect_button.setText("Переподключиться")
-            self.status.setText("Подключение к PostgreSQL установлено")
-            self.database_panel.clear_report()
-            self.refresh_collection_button()
+        dialog.connection_requested.connect(self.controller.connect_database)
+        connection = self.controller.connection
+        bindings = (
+            (connection.busy_changed, dialog.set_busy),
+            (connection.failed, dialog.show_error),
+            (connection.tested, dialog.show_test_success),
+            (connection.connected, dialog.show_connected),
+        )
+        for signal, slot in bindings:
+            signal.connect(slot)
+        dialog.exec()
+        for signal, slot in bindings:
+            signal.disconnect(slot)
         self.nav_group.button({0: 0, 1: 2, 2: 3}[self.pages.currentIndex()]).setChecked(True)
         dialog.deleteLater()
+
+    def show_connected(self, database):
+        self.connection_label.setText(f"PostgreSQL: {database}")
+        self.connection_state.setText("●  Подключено")
+        self.connect_button.setText("Переподключиться")
+        self.status.setText("Подключение к PostgreSQL установлено")
+        self.database_panel.clear_report()
+        self.refresh_collection_button()
 
     def update_tool_selection(self):
         names = []
@@ -217,49 +223,49 @@ class MainWindow(QtWidgets.QMainWindow):
     def refresh_collection_button(self):
         config = self.tools_panel.config_switch.isChecked()
         hardware = self.tools_panel.hardware_switch.isChecked()
-        self.database_panel.run_button.setEnabled(
-            self.collection_worker is None and (config or hardware)
-            and (not config or self.connection_parameters is not None)
-        )
+        self.database_panel.run_button.setEnabled(self.controller.can_collect(config, hardware))
 
     def start_collection(self):
-        if not self.database_panel.run_button.isEnabled() or self.collection_worker is not None:
-            return
         config = self.tools_panel.config_switch.isChecked()
         hardware = self.tools_panel.hardware_switch.isChecked()
+        self.controller.collect(config, hardware)
+
+    def start_hardware_collection(self):
+        if not self.controller.can_collect(False, True):
+            return
+        self.tools_panel.config_switch.setChecked(False)
+        self.tools_panel.hardware_switch.setChecked(True)
+        self.navigate(2)
+        self.start_collection()
+
+    def collection_started(self):
         self.database_panel.clear_report()
         self.database_panel.hint.setText("Собираю локальные показатели… Hardware: примерно 5 секунд. SQL не выполняется.")
-        self.collection_worker = CollectionWorker(self.connection_parameters, config, hardware, self)
-        self.collection_worker.report_ready.connect(self.collection_ready)
-        self.collection_worker.finished.connect(self.collection_finished)
         self.database_panel.cancel_button.show()
         self.tools_panel.setEnabled(False)
         self.refresh_collection_button()
-        self.collection_worker.start()
 
     def cancel_collection(self):
-        if self.collection_worker is not None:
-            self.collection_worker.requestInterruption()
+        if self.controller.collection.busy:
+            self.controller.collection.cancel()
             self.database_panel.hint.setText("Отмена… Текущий запрос к каталогам ограничен таймаутом.")
 
     def collection_ready(self, report):
-        if self._closing_after_collection:
+        if self.controller.closing:
             return
         self.database_panel.show_report(report)
         self.database_panel.hint.setText("Сбор завершён с ошибками отдельных модулей." if report["errors"]
                                          else "Сбор завершён. Ниже — факты, а не диагноз конкретного SQL.")
 
-    def collection_finished(self):
-        interrupted = self.collection_worker.isInterruptionRequested()
-        self.collection_worker.deleteLater()
-        self.collection_worker = None
+    def show_collection_error(self, error_type):
+        self.database_panel.hint.setText(f"Не удалось собрать показатели ({error_type}).")
+
+    def collection_finished(self, interrupted):
         self.database_panel.cancel_button.hide()
         self.tools_panel.setEnabled(True)
         self.refresh_collection_button()
         if interrupted:
             self.database_panel.hint.setText("Сбор отменён. Можно запустить заново.")
-        if self._closing_after_collection:
-            self.close()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -308,43 +314,40 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status.setText("Запрос изменён · Запустите анализ заново")
 
     def analyze(self):
-        if self.pages.currentIndex() != 0:
+        if self.pages.currentIndex() != 0 or self.controller.analysis_worker is not None:
             return
         sql = self.editor.sql_for_analysis()
         self._result_sql = self.editor.toPlainText()
-        if not sql.strip():
-            self.output.setPlainText("Нет запроса для анализа. Поместите курсор в SQL-запрос или выделите текст.")
-            self.editor.setFocus()
+        self.controller.analyze(sql, self.editor.context_label())
+
+    def show_analysis_busy(self, busy):
+        self.analyze_button.setEnabled(not busy)
+        self.analyze_button.setText("Анализ…" if busy else "Анализировать")
+        self.connect_button.setEnabled(not busy)
+        if busy:
+            self.output.clear()
+            self.status.setText("Получаю план PostgreSQL…")
+
+    def show_analysis_error(self, message):
+        self.output.setPlainText(message)
+        self.editor.setFocus()
+
+    def show_analysis(self, sql, result, saved):
+        if self.editor.toPlainText() != self._result_sql:
+            self.status.setText("Анализ завершён для прежнего текста · Запустите анализ заново")
             return
-        result = (
-            f"{self.editor.context_label()} · Запрос получен\n\n"
-            "Анализатор пока не подключён.\n"
-            "SQL не выполняется и не проверяется.\n\n"
-            f"Строк: {len(sql.splitlines())}\n"
-            f"Символов: {len(sql)}\n\n"
-            "Здесь появятся найденные ошибки,\nпредупреждения и рекомендации.\n\n"
-            f"SQL для анализа:\n{sql}"
-        )
         self.output.setPlainText(result)
-        if self.preferences.save_history and self.history_store is not None:
-            try:
-                self.history_store.add(sql, result)
-            except sqlite3.Error as error:
-                self.show_storage_error(error)
-                return
+        if saved:
             if sql.strip() == self.editor.toPlainText().strip():
                 self.editor.document().setModified(False)
-            self.status.setText("Запрос сохранён в истории · Результат демонстрационный")
-            self.refresh_history()
+            self.status.setText("План получен · Запрос сохранён в истории")
         else:
-            self.status.setText("Результат демонстрационный · Запрос не сохранён в истории")
+            self.status.setText("План получен · Запрос не сохранён в истории")
+        if self.controller.settings.values.save_history and self.controller.history.last_error:
+            self.show_storage_error(self.controller.history.last_error)
 
     def refresh_history(self, *_):
-        if self.history_store is not None:
-            try:
-                self.history_panel.set_entries(self.history_store.search(self.history_panel.search.text()))
-            except sqlite3.Error as error:
-                self.show_storage_error(error)
+        self.controller.history.search(self.history_panel.search.text())
 
     def restore_query(self, entry):
         if self.editor.document().isModified() and self.editor.toPlainText().strip():
@@ -362,52 +365,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.status.setText("Открыт запрос из истории · Показан сохранённый результат")
 
     def delete_query(self, query_id):
-        if self.history_store is None:
-            return
-        try:
-            self.history_store.delete(query_id)
-        except sqlite3.Error as error:
-            self.show_storage_error(error)
-            return
-        self.refresh_history()
-        self.status.setText("Запись удалена из истории")
+        if self.controller.history.delete(query_id):
+            self.status.setText("Запись удалена из истории")
 
     def show_storage_error(self, error):
         self.status.setText("Не удалось обновить историю. Текст запроса остался в редакторе.")
         self.status.setToolTip(str(error))
 
     def open_settings(self):
-        dialog = SettingsDialog(self.preferences, self)
+        dialog = SettingsDialog(self.controller.settings.values, self)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            try:
-                self.preferences.save(dialog.theme.currentData(), dialog.font_size.value(), dialog.history.isChecked())
-            except OSError as error:
-                QtWidgets.QMessageBox.warning(self, "Настройки", str(error))
-            self.apply_preferences()
+            self.controller.settings.save(dialog.theme.currentData(), dialog.font_size.value(), dialog.history.isChecked())
+        dialog.deleteLater()
 
     def save_editor_font_size(self, size):
         self.output.setFont(self.editor.font())
-        try:
-            self.preferences.save(self.preferences.theme, size, self.preferences.save_history)
-        except OSError as error:
-            self.status.setText("Размер шрифта изменён, но сохранить настройку не удалось.")
-            self.status.setToolTip(str(error))
+        self.controller.settings.set_font_size(size)
 
-    def apply_preferences(self):
-        apply_theme(QtWidgets.QApplication.instance(), self.preferences.theme)
-        self.editor.set_font_size(self.preferences.font_size)
+    def show_settings_error(self, message):
+        QtWidgets.QMessageBox.warning(self, "Настройки", message)
+
+    def apply_preferences(self, values=None):
+        values = values if values is not None else self.controller.settings.values
+        apply_theme(QtWidgets.QApplication.instance(), values.theme)
+        self.editor.set_font_size(values.font_size)
         self.output.setFont(self.editor.font())
-        self.editor.refresh_theme(self.preferences.theme)
+        self.editor.refresh_theme(values.theme)
 
     def closeEvent(self, event):
-        if self.collection_worker is not None:
-            self._closing_after_collection = True
-            self.cancel_collection()
+        if not self.controller.close():
+            self.database_panel.hint.setText("Отмена… Ожидаю завершения фоновых задач.")
             event.ignore()
             return
-        self.connection_parameters = None
-        if self.connection is not None:
-            self.connection.close()
-        if self.history_store is not None:
-            self.history_store.close()
         super().closeEvent(event)

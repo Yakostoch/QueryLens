@@ -7,21 +7,22 @@ class DatabasePanel(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
-        header = QtWidgets.QHBoxLayout()
         title = QtWidgets.QLabel("Анализ базы данных")
         title.setObjectName("brand")
-        header.addWidget(title)
-        header.addStretch()
+        layout.addWidget(title)
+        header = QtWidgets.QHBoxLayout()
+        header.setSpacing(12)
         self.tools_button = QtWidgets.QPushButton("Выбор инструментов")
         header.addWidget(self.tools_button)
         self.run_button = QtWidgets.QPushButton("Собрать показатели")
-        self.run_button.setObjectName("primary")
+        self.run_button.setObjectName("collectButton")
         self.run_button.setEnabled(False)
         self.run_button.setToolTip("Собрать выбранные показатели; SQL из редактора не выполняется")
         header.addWidget(self.run_button)
         self.cancel_button = QtWidgets.QPushButton("Отменить")
         self.cancel_button.hide()
         header.addWidget(self.cancel_button)
+        header.addStretch()
         layout.addLayout(header)
         self.hint = QtWidgets.QLabel("Выберите инструменты. Config требует локальную БД; Hardware можно запустить отдельно.")
         self.hint.setObjectName("muted")
@@ -77,7 +78,7 @@ class DatabasePanel(QtWidgets.QWidget):
             row.addWidget(QtWidgets.QLabel(name))
             row.addStretch()
             state = QtWidgets.QLabel()
-            state.setObjectName("muted")
+            state.setObjectName("toolState")
             row.addWidget(state)
             self.tool_states[name] = state
             report_layout.addLayout(row)
@@ -104,7 +105,12 @@ class DatabasePanel(QtWidgets.QWidget):
 
     def set_tools(self, names):
         for name, label in self.tool_states.items():
-            label.setText("Выбран" if name in names else "Выключен")
+            selected = name in names
+            label.setText("Выбран" if selected else "Выключен")
+            label.setProperty("selected", selected)
+            label.style().unpolish(label)
+            label.style().polish(label)
+            label.update()
 
     def clear_report(self):
         self.report.clear()
