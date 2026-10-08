@@ -30,8 +30,11 @@ def apply_theme(app, name):
         QMainWindow, QDialog { background: %(bg)s; }
         QLabel#brand { font-size: 25px; font-weight: 700; }
         QLabel#muted, QLabel#status { color: %(muted)s; }
+        QLabel#connectionState { color: %(muted)s; }
+        QLabel#connectionState[connected="true"] { color: %(success_text)s; font-weight: 600; }
         QLabel#section { font-size: 14px; font-weight: 600; }
         QLabel#metricValue { font-size: 28px; font-weight: 600; color: %(accent)s; }
+        QLabel#resourceValue { font-size: 23px; font-weight: 600; color: %(text)s; }
         QLabel#badge { color: %(accent)s; background: %(hover)s;
                        border-radius: 6px; padding: 5px 10px; }
         QLabel#toolState { color: %(muted)s; background: %(field)s;

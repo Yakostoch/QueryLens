@@ -7,6 +7,7 @@ from app.collectors.explain import collect_explain
 from app.collectors.statements import collect_statements, StatementsUnavailable
 from app.database.connection import connect_postgresql
 from datetime import datetime, timezone
+from app.services.query_structure import QueryStructureError
 
 
 def collect_features(parameters, *, sql=None, query_id=None, configuration=True,
@@ -49,10 +50,13 @@ def collect_features(parameters, *, sql=None, query_id=None, configuration=True,
             "sources": sources}
 
 
-def collect_report(parameters, config, hardware, cancelled=lambda: False):
+def collect_report(parameters, config, hardware, cancelled=lambda: False, *, metadata=None,
+                   scope="database", sql=None):
     report = {"schema_version": 1, "postgres": None, "system": None, "errors": {}}
     for name, enabled, collector in (
-        ("postgres", config, lambda: collect_postgres(parameters)),
+        ("postgres", config or metadata, lambda: collect_postgres(parameters, config=config,
+                                                                 metadata=config if metadata is None else metadata,
+                                                                 scope=scope, sql=sql)),
         ("system", hardware, lambda: collect_system(cancelled=cancelled)),
     ):
         if cancelled():
@@ -62,6 +66,9 @@ def collect_report(parameters, config, hardware, cancelled=lambda: False):
                 if name == "postgres" and parameters is None:
                     raise ValueError("Подключение не задано")
                 report[name] = collector()
+            except QueryStructureError as error:
+                report["errors"][name] = type(error).__name__
+                report.setdefault("error_details", {})[name] = str(error)
             except Exception as error:
                 # Сообщение драйвера может содержать параметры: не показываем/не логируем.
                 report["errors"][name] = type(error).__name__

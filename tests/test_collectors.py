@@ -56,62 +56,79 @@ class CollectionInterfaceTests(unittest.TestCase):
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
     def setUp(self):
+        from analysis_support import connect_fake_database
         self.temp = tempfile.TemporaryDirectory()
         preferences = Preferences(QtCore.QSettings(str(Path(self.temp.name) / "settings.ini"),
                                                   QtCore.QSettings.Format.IniFormat))
         self.window = MainWindow(self.temp.name, preferences)
-        self.window.tools_panel.config_switch.setChecked(False)
-        self.window.tools_panel.hardware_switch.setChecked(True)
+        connect_fake_database(self.window.controller)
+
+    def wait_collection(self):
+        import time
+        for _ in range(200):
+            self.app.processEvents()
+            if not self.window.controller.collection.busy:
+                return
+            time.sleep(0.005)
+        self.fail("Collection did not stop")
 
     def tearDown(self):
         self.window.close()
-        for _ in range(100):
-            self.app.processEvents()
-            if self.window.controller.collection.worker is None:
-                break
-            QtTest.QTest.qWait(10)
+        self.wait_collection()
         self.temp.cleanup()
 
-    def test_hardware_without_database_and_report_does_not_enter_sql_history(self):
-        from app.collectors.system import collect_system
-
-        with patch("app.services.collection_service.collect_system",
-                   side_effect=lambda **kwargs: collect_system(1, 0.05, **kwargs)):
-            self.assertTrue(self.window.database_panel.run_button.isEnabled())
+    def test_database_options_control_sources_without_collecting_hardware(self):
+        self.window.database_panel.config_option.setChecked(False)
+        self.window.navigate(1)
+        with patch("app.services.collection_service.collect_postgres", return_value={}) as postgres, \
+                patch("app.services.collection_service.collect_system") as system:
             self.window.start_collection()
             self.assertFalse(self.window.database_panel.run_button.isEnabled())
-            for _ in range(100):
-                self.app.processEvents()
-                if self.window.controller.collection.worker is None:
-                    break
-                QtTest.QTest.qWait(10)
-        self.assertIsNone(self.window.controller.collection.worker)
-        self.assertIn("RAM", self.window.database_panel.report.toPlainText())
+            self.wait_collection()
+        postgres.assert_called_once_with(self.window.controller.connection.parameters, config=False, metadata=True,
+                                         scope="database", sql="")
+        system.assert_not_called()
         self.assertEqual(self.window.controller.history.store.search(), [])
+        self.window.database_panel.metadata_option.setChecked(False)
+        self.assertFalse(self.window.database_panel.run_button.isEnabled())
 
     def test_close_during_collection_waits_for_worker_without_blocking(self):
-        self.window.show()
-        self.window.start_collection()
-        self.window.close()
-        self.assertTrue(self.window.controller.closing)
-        for _ in range(100):
-            self.app.processEvents()
-            if self.window.controller.collection.worker is None:
-                break
-            QtTest.QTest.qWait(10)
-        self.assertIsNone(self.window.controller.collection.worker)
+        import threading
+        entered, release = threading.Event(), threading.Event()
+
+        def collect(*args, **kwargs):
+            entered.set()
+            release.wait(2)
+            return {}
+
+        with patch("app.services.collection_service.collect_postgres", side_effect=collect):
+            self.window.show()
+            self.window.start_collection()
+            try:
+                self.assertTrue(entered.wait(1))
+                self.window.close()
+                self.assertTrue(self.window.controller.closing)
+                self.assertTrue(self.window.isVisible())
+            finally:
+                release.set()
+                self.wait_collection()
         self.assertFalse(self.window.isVisible())
 
-    def test_hardware_button_selects_only_hardware_and_opens_report(self):
-        self.window.tools_panel.config_switch.setChecked(True)
-        self.window.tools_panel.hardware_switch.setChecked(False)
-        self.window.navigate(3)
-        with patch.object(self.window.controller, "collect") as collect:
-            self.window.tools_panel.hardware_button.click()
-        collect.assert_called_once_with(False, True)
-        self.assertFalse(self.window.tools_panel.config_switch.isChecked())
-        self.assertTrue(self.window.tools_panel.hardware_switch.isChecked())
-        self.assertEqual(self.window.pages.currentIndex(), 1)
+    def test_current_query_scope_uses_editor_statement_and_empty_sql_is_rejected(self):
+        from PySide6 import QtGui
+        panel = self.window.database_panel
+        panel.metadata_scope.setCurrentIndex(0)
+        self.window.editor.setPlainText("SELECT 1; SELECT name FROM users;")
+        cursor = self.window.editor.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
+        self.window.editor.setTextCursor(cursor)
+        with patch.object(self.window.controller, "collect_database") as collect:
+            panel.run_button.click()
+        collect.assert_called_once_with(True, True, "query", "SELECT name FROM users;")
+        self.window.editor.clear()
+        panel.run_button.click()
+        self.assertFalse(self.window.controller.collection.busy)
+        self.assertIn("Введите SQL", panel.hint.text())
 
 
 if __name__ == "__main__":

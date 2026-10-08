@@ -77,7 +77,7 @@ class FeatureCollectionTests(unittest.TestCase):
         with patch("app.collectors.metadata.QueryExecutor") as executor_class:
             executor = executor_class.return_value
             executor.fetch_one.side_effect = [{"version": "test"}, {"blks_hit": 5}, RuntimeError()]
-            executor.fetch_all.return_value = [{"name": "users", "indexes": 1}]
+            executor.fetch_all.side_effect = [[{"oid": 1, "name": "users", "indexes": 1}], []]
             result = collect_metadata(connection)
         self.assertIsNone(result["database_size_bytes"])
         self.assertEqual(result["tables"][0]["name"], "users")

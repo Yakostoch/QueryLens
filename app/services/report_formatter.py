@@ -24,18 +24,28 @@ def format_report(report):
     for name, title in (("postgres", "PostgreSQL"), ("system", "Компьютер")):
         if name in report["errors"]:
             lines.append(f"{title}: сбор не завершён ({report['errors'][name]}). Проверьте зависимости, подключение и права.")
-        elif report[name] is None:
+            if name in report.get("error_details", {}):
+                lines.append(report["error_details"][name])
+        elif report[name] is None and name != "system":
             lines.append(f"{title}: сбор выключен.")
     db = report["postgres"]
     if db:
-        lines += ["", "POSTGRESQL", db["version"], f"Размер БД: {size(db.get('database_size_bytes'))}",
-                  "Настройки текущей диагностической сессии; не обязательно совпадают с сессией приложения."]
+        lines += ["", "POSTGRESQL"]
+        if db.get("metadata_scope") == "query":
+            lines += ["Структура по текущему запросу (снимок SQL на момент запуска):", db["metadata_sql"],
+                      "Показаны поля из SELECT, JOIN, фильтров и других частей запроса.",
+                      "Размер и накопленная статистика ниже относятся ко всей БД."]
+        if db.get("metadata_collected", True):
+            lines += [db["version"], f"Размер БД: {size(db.get('database_size_bytes'))}"]
+        if db.get("configuration_collected", True):
+            lines.append("Настройки текущей диагностической сессии; не обязательно совпадают с сессией приложения.")
         for row in db["settings"]:
             lines += [f"\n{row['name']}: {setting_value(row)}", SETTINGS[row["name"]],
                       f"Источник: {row['source']}; требуется перезапуск: {row['pending_restart']}"]
         if db["settings_unavailable"]:
             lines.append("Недоступные настройки: " + ", ".join(db["settings_unavailable"]))
-        lines += ["", "Накопленная статистика всей базы — не показатели одного SQL:"]
+        if db.get("metadata_collected", True):
+            lines += ["", "Накопленная статистика всей базы — не показатели одного SQL:"]
         for key, value in (db["database_statistics"] or {}).items():
             lines.append(f"{key}: {value}")
     system = report["system"]
