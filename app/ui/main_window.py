@@ -7,7 +7,7 @@ from app.ui.theme import apply_theme
 from app.ui.widgets.history_panel import HistoryPanel
 from app.ui.widgets.sql_editor import SqlEditor
 from app.ui.widgets.database_panel import DatabasePanel
-from app.ui.widgets.tools_panel import ToolsPanel
+from app.ui.widgets.resource_panel import ResourcePanel
 from app.ui.widgets.icons import make_icon
 
 
@@ -40,8 +40,8 @@ class MainWindow(QtWidgets.QMainWindow):
         nav_layout.setSpacing(4)
         self.nav_group = QtWidgets.QButtonGroup(self)
         self.nav_buttons = {}
-        for index, (name, icon) in enumerate((("SQL", "sql"), ("Подключение", "database"),
-                                               ("Анализ БД", "chart"), ("Инструменты", "tools"))):
+        for index, (name, icon) in enumerate((("SQL", "sql"), ("Анализ БД", "database"),
+                                               ("Ресурсы", "chart"))):
             button = QtWidgets.QPushButton(name)
             button.setIcon(make_icon(icon))
             button.setIconSize(QtCore.QSize(20, 20))
@@ -76,7 +76,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.connection_label = QtWidgets.QLabel("СУБД не подключена")
         connection_layout.addWidget(self.connection_label)
         self.connection_state = QtWidgets.QLabel("●  Нет подключения")
-        self.connection_state.setObjectName("muted")
+        self.connection_state.setObjectName("connectionState")
+        self.connection_state.setProperty("connected", False)
         connection_layout.addWidget(self.connection_state)
         connection_layout.addStretch()
         connection_details = QtWidgets.QLabel("Версия: —   |   Схема: —")
@@ -129,16 +130,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pages.addWidget(self.splitter)
         self.database_panel = DatabasePanel()
         self.pages.addWidget(self.scroll_page(self.database_panel))
-        self.tools_panel = ToolsPanel()
-        self.pages.addWidget(self.scroll_page(self.tools_panel))
-        self.database_panel.connect_button.clicked.connect(self.open_connection)
-        self.database_panel.tools_button.clicked.connect(lambda: self.navigate(3))
+        self.resource_panel = ResourcePanel()
+        self.pages.addWidget(self.scroll_page(self.resource_panel))
         self.database_panel.run_button.clicked.connect(self.start_collection)
         self.database_panel.cancel_button.clicked.connect(self.cancel_collection)
-        self.tools_panel.analysis_button.clicked.connect(lambda: self.navigate(2))
-        self.tools_panel.hardware_button.clicked.connect(self.start_hardware_collection)
-        self.tools_panel.selection_changed.connect(self.update_tool_selection)
-        self.update_tool_selection()
+        self.database_panel.options_changed.connect(self.refresh_collection_button)
+        self.resource_panel.start_button.clicked.connect(self.start_monitoring)
+        self.resource_panel.stop_button.clicked.connect(self.stop_monitoring)
+        self.controller.monitoring.sample_ready.connect(self.resource_panel.show_sample)
+        self.controller.monitoring.failed.connect(self.resource_panel.show_error)
+        self.controller.monitoring.busy_changed.connect(self.resource_panel.set_busy)
+        self.refresh_collection_button()
         layout.addWidget(self.pages, 1)
 
         self.status = QtWidgets.QLabel("Готово к работе · Ctrl+Enter — анализировать")
@@ -172,11 +174,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.status.setToolTip(self.controller.history.initial_error)
 
     def navigate(self, index):
-        if index == 1:
-            self.open_connection()
-            return
-        page = {0: 0, 2: 1, 3: 2}[index]
-        self.pages.setCurrentIndex(page)
+        self.pages.setCurrentIndex(index)
         self.nav_group.button(index).setChecked(True)
         self.status.setVisible(index == 0)
         if index == 0:
@@ -185,7 +183,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def open_connection(self):
         if self.controller.collection.busy or self.controller.closing or self.controller.analysis_worker is not None:
             return
-        self.nav_buttons["Подключение"].setChecked(True)
         dialog = ConnectionDialog(self)
         dialog.connection_requested.connect(self.controller.connect_database)
         connection = self.controller.connection
@@ -200,49 +197,43 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.exec()
         for signal, slot in bindings:
             signal.disconnect(slot)
-        self.nav_group.button({0: 0, 1: 2, 2: 3}[self.pages.currentIndex()]).setChecked(True)
         dialog.deleteLater()
 
     def show_connected(self, database):
         self.connection_label.setText(f"PostgreSQL: {database}")
         self.connection_state.setText("●  Подключено")
+        self.connection_state.setProperty("connected", True)
+        self.connection_state.style().unpolish(self.connection_state)
+        self.connection_state.style().polish(self.connection_state)
+        self.connection_state.update()
         self.connect_button.setText("Переподключиться")
         self.status.setText("Подключение к PostgreSQL установлено")
         self.database_panel.clear_report()
         self.refresh_collection_button()
 
-    def update_tool_selection(self):
-        names = []
-        if self.tools_panel.config_switch.isChecked():
-            names.append("Config Analyzer")
-        if self.tools_panel.hardware_switch.isChecked():
-            names.append("Hardware Analyzer")
-        self.database_panel.set_tools(names)
-        self.refresh_collection_button()
-
     def refresh_collection_button(self):
-        config = self.tools_panel.config_switch.isChecked()
-        hardware = self.tools_panel.hardware_switch.isChecked()
-        self.database_panel.run_button.setEnabled(self.controller.can_collect(config, hardware))
+        config = self.database_panel.config_option.isChecked()
+        metadata = self.database_panel.metadata_option.isChecked()
+        self.database_panel.run_button.setEnabled(self.controller.can_collect_database(config, metadata))
 
     def start_collection(self):
-        config = self.tools_panel.config_switch.isChecked()
-        hardware = self.tools_panel.hardware_switch.isChecked()
-        self.controller.collect(config, hardware)
+        self.controller.collect_database(self.database_panel.config_option.isChecked(),
+                                         self.database_panel.metadata_option.isChecked(),
+                                         self.database_panel.metadata_scope.currentData(),
+                                         self.editor.sql_for_analysis())
 
-    def start_hardware_collection(self):
-        if not self.controller.can_collect(False, True):
-            return
-        self.tools_panel.config_switch.setChecked(False)
-        self.tools_panel.hardware_switch.setChecked(True)
-        self.navigate(2)
-        self.start_collection()
+    def start_monitoring(self):
+        self.controller.start_monitoring(self.resource_panel.selected_options(), self.resource_panel.interval.currentData())
+
+    def stop_monitoring(self):
+        self.controller.monitoring.stop()
+        self.resource_panel.show_stopping()
 
     def collection_started(self):
         self.database_panel.clear_report()
-        self.database_panel.hint.setText("Собираю локальные показатели… Hardware: примерно 5 секунд. SQL не выполняется.")
+        self.database_panel.hint.setText("Собираю выбранные данные PostgreSQL…")
         self.database_panel.cancel_button.show()
-        self.tools_panel.setEnabled(False)
+        self.database_panel.options_widget.setEnabled(False)
         self.refresh_collection_button()
 
     def cancel_collection(self):
@@ -258,11 +249,11 @@ class MainWindow(QtWidgets.QMainWindow):
                                          else "Сбор завершён. Ниже — факты, а не диагноз конкретного SQL.")
 
     def show_collection_error(self, error_type):
-        self.database_panel.hint.setText(f"Не удалось собрать показатели ({error_type}).")
+        self.database_panel.hint.setText(f"Не удалось собрать показатели: {error_type}")
 
     def collection_finished(self, interrupted):
         self.database_panel.cancel_button.hide()
-        self.tools_panel.setEnabled(True)
+        self.database_panel.options_widget.setEnabled(True)
         self.refresh_collection_button()
         if interrupted:
             self.database_panel.hint.setText("Сбор отменён. Можно запустить заново.")

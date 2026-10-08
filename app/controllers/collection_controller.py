@@ -17,13 +17,14 @@ class CollectionController(QtCore.QObject):
     def busy(self):
         return self.worker is not None
 
-    def can_start(self, parameters, config, hardware):
-        return not self.busy and bool(config or hardware) and (not config or parameters is not None)
+    def can_start(self, parameters, config, hardware, metadata=None):
+        database = config or metadata
+        return not self.busy and bool(database or hardware) and (not database or parameters is not None)
 
-    def start(self, parameters, config, hardware):
-        if not self.can_start(parameters, config, hardware):
+    def start(self, parameters, config, hardware, metadata=None, *, scope="database", sql=None):
+        if not self.can_start(parameters, config, hardware, metadata):
             return False
-        self.worker = CollectionWorker(parameters, config, hardware, self)
+        self.worker = CollectionWorker(parameters, config, hardware, self, metadata=metadata, scope=scope, sql=sql)
         self.worker.report_ready.connect(self.report_ready.emit)
         self.worker.failed.connect(self.failed.emit)
         self.worker.finished.connect(self._finished)

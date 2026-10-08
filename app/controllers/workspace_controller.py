@@ -6,6 +6,7 @@ from app.controllers.collection_controller import CollectionController
 from app.controllers.connection_controller import ConnectionController
 from app.controllers.history_controller import HistoryController
 from app.controllers.settings_controller import SettingsController
+from app.controllers.monitoring_controller import MonitoringController
 from app.services.analysis_service import AnalysisService
 from app.workers.analysis_worker import AnalysisWorker
 
@@ -28,6 +29,8 @@ class WorkspaceController(QtCore.QObject):
         self.history = HistoryController(directory / "history.sqlite3", self)
         self.connection = ConnectionController(database_service, self)
         self.collection = CollectionController(self)
+        self.monitoring = MonitoringController(self)
+        self.monitoring.finished.connect(self._monitoring_finished)
         self.analysis_service = analysis_service if analysis_service is not None else AnalysisService(self.connection.service)
         self.analysis_worker = None
         self.closing = False
@@ -44,6 +47,24 @@ class WorkspaceController(QtCore.QObject):
     def collect(self, config, hardware):
         if self.can_collect(config, hardware):
             self.collection.start(self.connection.parameters, config, hardware)
+
+    def can_collect_database(self, config, metadata):
+        return not self.closing and self.collection.can_start(self.connection.parameters, config, False, metadata)
+
+    def collect_database(self, config, metadata, scope="database", sql=None):
+        if metadata and scope == "query" and (not sql or not sql.strip()):
+            self.collection.failed.emit("Введите SQL и выберите запрос курсором или выделением на вкладке SQL.")
+            return
+        if self.can_collect_database(config, metadata):
+            self.collection.start(self.connection.parameters, config, False, metadata, scope=scope, sql=sql)
+
+    def start_monitoring(self, options, interval):
+        if not self.closing:
+            self.monitoring.start(options, interval)
+
+    def _monitoring_finished(self):
+        if self.closing and self.close():
+            self.close_ready.emit()
 
     def analyze(self, sql, context="Запрос"):
         if self.closing or self.analysis_worker is not None:
@@ -84,8 +105,9 @@ class WorkspaceController(QtCore.QObject):
         if self._closed:
             return True
         self.closing = True
-        if self.collection.busy or self.analysis_worker is not None:
+        if self.collection.busy or self.analysis_worker is not None or self.monitoring.busy:
             self.collection.cancel()
+            self.monitoring.stop()
             if self.analysis_worker is not None:
                 self.analysis_worker.requestInterruption()
             return False
