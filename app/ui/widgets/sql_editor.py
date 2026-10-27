@@ -95,7 +95,9 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
         self.context_changed.emit()
 
     def current_statement(self):
-        return self._context.current(python_position(self._context.text, self.textCursor().position()))
+        return self._context.current(
+            python_position(self._context.text, self.textCursor().position())
+        )
 
     def sql_for_analysis(self):
         cursor = self.textCursor()
@@ -105,13 +107,15 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
         if current is None:
             return ""
         statement = current[1]
-        return self._context.text[statement.start:statement.end]
+        return self._context.text[statement.start : statement.end]
 
     def context_label(self):
         if self.textCursor().hasSelection():
             return "Выделение"
         current = self.current_statement()
-        return f"Запрос {current[0] + 1}/{len(self._context.statements)}" if current else "Нет запроса"
+        return (
+            f"Запрос {current[0] + 1}/{len(self._context.statements)}" if current else "Нет запроса"
+        )
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -165,8 +169,7 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
         bounds = self.blockBoundingGeometry(block).translated(self.contentOffset())
         if not block.text().strip() or not bounds.top() <= point.y() < bounds.bottom():
             return None
-        # cursorForPosition clamps to the nearest text: exclude the empty area
-        # to the right of a line and below the final line of the document.
+        # Не выделяем пустую область справа от строки и ниже последней строки.
         edge = QtGui.QTextCursor(block)
         left = self.cursorRect(edge).left()
         edge.movePosition(QtGui.QTextCursor.MoveOperation.EndOfBlock)
@@ -174,11 +177,19 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
         if not left <= point.x() <= right + 2:
             return None
         position = cursor.position()
-        if position > block.position() and (cursor.atBlockEnd() or point.x() < self.cursorRect(cursor).left()):
+        if position > block.position() and (
+            cursor.atBlockEnd() or point.x() < self.cursorRect(cursor).left()
+        ):
             position -= 1
         position = python_position(self._context.text, position)
-        return next((statement for statement in self._context.statements
-                     if statement.terminated and statement.start <= position < statement.end), None)
+        return next(
+            (
+                statement
+                for statement in self._context.statements
+                if statement.terminated and statement.start <= position < statement.end
+            ),
+            None,
+        )
 
     def mouseMoveEvent(self, event):
         super().mouseMoveEvent(event)
@@ -194,14 +205,19 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
 
     def show_hover_statement(self):
         point = self.viewport().mapFromGlobal(QtGui.QCursor.pos())
-        if self._hover_candidate is not None and self.statement_at_point(point) == self._hover_candidate:
+        if (
+            self._hover_candidate is not None
+            and self.statement_at_point(point) == self._hover_candidate
+        ):
             self._hover_statement = self._hover_candidate
             self.viewport().update()
         else:
             self.reset_hover()
 
     def viewportEvent(self, event):
-        if event.type() in (QtCore.QEvent.Type.Leave, QtCore.QEvent.Type.Hide) and hasattr(self, "_hover_timer"):
+        if event.type() in (QtCore.QEvent.Type.Leave, QtCore.QEvent.Type.Hide) and hasattr(
+            self, "_hover_timer"
+        ):
             self.reset_hover()
         return super().viewportEvent(event)
 
@@ -211,8 +227,12 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
 
     def wheelEvent(self, event):
         if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
-            # Accumulate small deltas from high-resolution wheels / touchpads.
-            delta = event.angleDelta().y() / 120 if event.angleDelta().y() else event.pixelDelta().y() / 40
+            # Накапливаем небольшие смещения колеса и сенсорной панели.
+            delta = (
+                event.angleDelta().y() / 120
+                if event.angleDelta().y()
+                else event.pixelDelta().y() / 40
+            )
             if delta * self._wheel_remainder < 0:
                 self._wheel_remainder = 0.0
             self._wheel_remainder += delta
@@ -270,7 +290,7 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
             height = min(desired_height, space_above)
             top = anchor.y() - gap - height
         else:
-            # At the top edge of the screen keep the input line unobstructed.
+            # У верхнего края экрана размещаем подсказки под строкой ввода.
             top = self.viewport().mapToGlobal(cursor.bottomLeft()).y() + gap
             height = min(desired_height, max(1, available.bottom() - top + 1))
         left = max(available.left(), min(anchor.x(), available.right() - width + 1))
@@ -286,7 +306,9 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
         suffix = re.match(r"[A-Za-z_0-9]*", text[position:]).group()
         cursor.beginEditBlock()
         cursor.setPosition(qt_position(text, position - len(prefix)))
-        cursor.setPosition(qt_position(text, position + len(suffix)), QtGui.QTextCursor.MoveMode.KeepAnchor)
+        cursor.setPosition(
+            qt_position(text, position + len(suffix)), QtGui.QTextCursor.MoveMode.KeepAnchor
+        )
         cursor.insertText(completion)
         cursor.endEditBlock()
         self.setTextCursor(cursor)
@@ -299,9 +321,7 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
     def update_number_margin(self, *_):
         self.setViewportMargins(self.number_area_width(), 0, 0, 0)
         rect = self.contentsRect()
-        self.numbers.setGeometry(
-            rect.left(), rect.top(), self.number_area_width(), rect.height()
-        )
+        self.numbers.setGeometry(rect.left(), rect.top(), self.number_area_width(), rect.height())
 
     def update_number_area(self, rect, dy):
         if dy:
@@ -328,8 +348,12 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
             height = round(self.blockBoundingRect(block).height())
             if block.isVisible() and top + height >= event.rect().top():
                 painter.drawText(
-                    0, top, self.numbers.width() - 8, self.fontMetrics().height(),
-                    QtCore.Qt.AlignmentFlag.AlignRight, str(block.blockNumber() + 1)
+                    0,
+                    top,
+                    self.numbers.width() - 8,
+                    self.fontMetrics().height(),
+                    QtCore.Qt.AlignmentFlag.AlignRight,
+                    str(block.blockNumber() + 1),
                 )
             top += height
             block = block.next()
@@ -359,8 +383,10 @@ class SqlEditor(QtWidgets.QPlainTextEdit):
             else:
                 self.insertPlainText("    ")
             return
-        if (event.key() == QtCore.Qt.Key.Key_Space
-                and event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier):
+        if (
+            event.key() == QtCore.Qt.Key.Key_Space
+            and event.modifiers() == QtCore.Qt.KeyboardModifier.ControlModifier
+        ):
             self.show_completions(force=True)
             return
         super().keyPressEvent(event)

@@ -5,25 +5,37 @@ from PySide6 import QtCore
 from app.controllers.collection_controller import CollectionController
 from app.controllers.connection_controller import ConnectionController
 from app.controllers.history_controller import HistoryController
-from app.controllers.settings_controller import SettingsController
 from app.controllers.monitoring_controller import MonitoringController
+from app.controllers.settings_controller import SettingsController
 from app.services.analysis_service import AnalysisService
 from app.workers.analysis_worker import AnalysisWorker
 
 
 class WorkspaceController(QtCore.QObject):
-    """Coordinates workflows and owns application resources, never widgets."""
+    """Управляет рабочими задачами и ресурсами приложения."""
 
     analysis_ready = QtCore.Signal(str, str, bool)
     analysis_failed = QtCore.Signal(str)
     analysis_busy_changed = QtCore.Signal(bool)
     close_ready = QtCore.Signal()
 
-    def __init__(self, data_dir=None, preferences=None, parent=None, analysis_service=None,
-                 database_service=None):
+    def __init__(
+        self,
+        data_dir=None,
+        preferences=None,
+        parent=None,
+        analysis_service=None,
+        database_service=None,
+    ):
         super().__init__(parent)
-        directory = Path(data_dir) if data_dir is not None else Path(
-            QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.StandardLocation.AppLocalDataLocation)
+        directory = (
+            Path(data_dir)
+            if data_dir is not None
+            else Path(
+                QtCore.QStandardPaths.writableLocation(
+                    QtCore.QStandardPaths.StandardLocation.AppLocalDataLocation
+                )
+            )
         )
         self.settings = SettingsController(preferences, self)
         self.history = HistoryController(directory / "history.sqlite3", self)
@@ -31,7 +43,11 @@ class WorkspaceController(QtCore.QObject):
         self.collection = CollectionController(self)
         self.monitoring = MonitoringController(self)
         self.monitoring.finished.connect(self._monitoring_finished)
-        self.analysis_service = analysis_service if analysis_service is not None else AnalysisService(self.connection.service)
+        self.analysis_service = (
+            analysis_service
+            if analysis_service is not None
+            else AnalysisService(self.connection.service)
+        )
         self.analysis_worker = None
         self.closing = False
         self._closed = False
@@ -42,21 +58,29 @@ class WorkspaceController(QtCore.QObject):
             self.connection.connect_database(parameters, test_only)
 
     def can_collect(self, config, hardware):
-        return not self.closing and self.collection.can_start(self.connection.parameters, config, hardware)
+        return not self.closing and self.collection.can_start(
+            self.connection.parameters, config, hardware
+        )
 
     def collect(self, config, hardware):
         if self.can_collect(config, hardware):
             self.collection.start(self.connection.parameters, config, hardware)
 
     def can_collect_database(self, config, metadata):
-        return not self.closing and self.collection.can_start(self.connection.parameters, config, False, metadata)
+        return not self.closing and self.collection.can_start(
+            self.connection.parameters, config, False, metadata
+        )
 
     def collect_database(self, config, metadata, scope="database", sql=None):
         if metadata and scope == "query" and (not sql or not sql.strip()):
-            self.collection.failed.emit("Введите SQL и выберите запрос курсором или выделением на вкладке SQL.")
+            self.collection.failed.emit(
+                "Введите SQL и выберите запрос курсором или выделением на вкладке SQL."
+            )
             return
         if self.can_collect_database(config, metadata):
-            self.collection.start(self.connection.parameters, config, False, metadata, scope=scope, sql=sql)
+            self.collection.start(
+                self.connection.parameters, config, False, metadata, scope=scope, sql=sql
+            )
 
     def start_monitoring(self, options, interval):
         if not self.closing:
@@ -66,25 +90,48 @@ class WorkspaceController(QtCore.QObject):
         if self.closing and self.close():
             self.close_ready.emit()
 
-    def analyze(self, sql, context="Запрос"):
+    def analyze(self, sql, context="Запрос", *, analyze=False, timeout_ms=5000):
         if self.closing or self.analysis_worker is not None:
             return
         if not sql.strip():
-            self.analysis_failed.emit("Нет запроса для анализа. Поместите курсор в SQL-запрос или выделите текст.")
+            self.analysis_failed.emit(
+                "Нет запроса для анализа. Поместите курсор в SQL-запрос или выделите текст."
+            )
             return
         parameters = self.connection.parameters
         if parameters is None:
             self.analysis_failed.emit("Сначала подключитесь к PostgreSQL через диалог подключения.")
             return
-        self.analysis_worker = AnalysisWorker(self.analysis_service, sql, parameters, context, self)
+        self.analysis_worker = AnalysisWorker(
+            self.analysis_service,
+            sql,
+            parameters,
+            context,
+            self,
+            analyze=analyze,
+            timeout_ms=timeout_ms,
+        )
         self.analysis_worker.result_ready.connect(self._analysis_ready)
         self.analysis_worker.failed.connect(self._analysis_failed)
+        self.analysis_worker.cancelled.connect(self._analysis_cancelled)
         self.analysis_worker.finished.connect(self._analysis_finished)
         self.analysis_busy_changed.emit(True)
         self.analysis_worker.start()
 
+    def cancel_analysis(self):
+        if self.analysis_worker is not None:
+            self.analysis_worker.requestInterruption()
+
+    def _analysis_cancelled(self):
+        if not self.closing:
+            self.analysis_failed.emit("Анализ отменён. Незавершённые измерения не сохранены.")
+
     def _analysis_ready(self, result):
-        if self.closing:
+        if (
+            self.closing
+            or self.analysis_worker is None
+            or self.analysis_worker.isInterruptionRequested()
+        ):
             return
         sql = self.analysis_worker.sql
         saved = self.settings.values.save_history and self.history.add(sql, result)

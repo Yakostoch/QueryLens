@@ -2,7 +2,8 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 
 class ToggleSwitch(QtWidgets.QCheckBox):
-    """A keyboard-accessible checkbox painted as a compact switch."""
+    """Переключатель с управлением с клавиатуры."""
+
     def __init__(self, accessible_name, parent=None):
         super().__init__(parent)
         self.setAccessibleName(accessible_name)

@@ -18,13 +18,24 @@ from app.ui.main_window import MainWindow
 
 
 def sample_report(options=None):
-    return {"options": options or {"cpu": True, "ram": True, "disk": True},
-            "logical_cores": 4, "ram_total_bytes": 16 * 2**30,
-            "samples": [{"timestamp": datetime.now(timezone.utc).isoformat(), "interval_seconds": 1,
-                         "cpu_percent_per_core": [20, 40, 60, 80], "ram_used_percent": 50,
-                         "ram_available_bytes": 8 * 2**30, "swap_used_bytes": 0,
-                         "disk_io_rates": {"disk": {"read_bytes_per_second": 2**20,
-                                                     "write_bytes_per_second": 2 * 2**20}}}]}
+    return {
+        "options": options or {"cpu": True, "ram": True, "disk": True},
+        "logical_cores": 4,
+        "ram_total_bytes": 16 * 2**30,
+        "samples": [
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "interval_seconds": 1,
+                "cpu_percent_per_core": [20, 40, 60, 80],
+                "ram_used_percent": 50,
+                "ram_available_bytes": 8 * 2**30,
+                "swap_used_bytes": 0,
+                "disk_io_rates": {
+                    "disk": {"read_bytes_per_second": 2**20, "write_bytes_per_second": 2 * 2**20}
+                },
+            }
+        ],
+    }
 
 
 class SystemSamplingTests(unittest.TestCase):
@@ -53,8 +64,11 @@ class MonitoringInterfaceTests(unittest.TestCase):
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        settings = Preferences(QtCore.QSettings(str(Path(self.temp.name) / "settings.ini"),
-                                               QtCore.QSettings.Format.IniFormat))
+        settings = Preferences(
+            QtCore.QSettings(
+                str(Path(self.temp.name) / "settings.ini"), QtCore.QSettings.Format.IniFormat
+            )
+        )
         self.window = MainWindow(self.temp.name, settings)
 
     def pump_until(self, condition):

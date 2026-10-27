@@ -1,4 +1,5 @@
 """Накопленные показатели pg_stat_statements по известному queryid."""
+
 from app.database.query_executor import QueryExecutor
 
 
@@ -19,11 +20,14 @@ def collect_statements(connection, query_id):
     )
     if extension is None:
         raise StatementsUnavailable()
-    # Schema is discovered from the extension, not assumed to be public.
-    # Keep separate rows per role/toplevel; don't merge unrelated workloads.
-    rows = executor.fetch_all(sql.SQL(
-        "SELECT s.* FROM {}.pg_stat_statements s "
-        "WHERE s.dbid = (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()) "
-        "AND s.queryid = %s ORDER BY s.userid"
-    ).format(sql.Identifier(extension["schema"])), (query_id,))
+    # Находим схему расширения в каталоге.
+    # Показатели разных ролей и уровней вызова храним отдельно.
+    rows = executor.fetch_all(
+        sql.SQL(
+            "SELECT s.* FROM {}.pg_stat_statements s "
+            "WHERE s.dbid = (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database()) "
+            "AND s.queryid = %s ORDER BY s.userid"
+        ).format(sql.Identifier(extension["schema"])),
+        (query_id,),
+    )
     return {"query_id": query_id, "scope": "current_database", "statements": rows}

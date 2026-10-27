@@ -1,8 +1,9 @@
-from analysis_support import connect_fake_database, wait_analysis
 import os
 import tempfile
 import unittest
 from pathlib import Path
+
+from analysis_support import connect_fake_database, wait_analysis
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
@@ -10,8 +11,8 @@ from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
 from app.storage.history import HistoryStore
 from app.storage.preferences import Preferences
-from app.ui.main_window import MainWindow
 from app.ui.dialog.settings_dialog import SettingsDialog
+from app.ui.main_window import MainWindow
 
 
 class HistoryTests(unittest.TestCase):
@@ -39,7 +40,7 @@ class InterfaceTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
         cls.app.setStyle("Fusion")
-        # Offscreen Qt on Windows may not discover installed fonts automatically.
+        # В режиме offscreen на Windows шрифты могут не определиться автоматически.
         for filename in ("segoeui.ttf", "consola.ttf"):
             path = Path("C:/Windows/Fonts") / filename
             if path.exists():
@@ -49,7 +50,9 @@ class InterfaceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.settings_path = str(Path(self.temp.name) / "settings.ini")
-        self.preferences = Preferences(QtCore.QSettings(self.settings_path, QtCore.QSettings.Format.IniFormat))
+        self.preferences = Preferences(
+            QtCore.QSettings(self.settings_path, QtCore.QSettings.Format.IniFormat)
+        )
         self.window = MainWindow(self.temp.name, self.preferences)
         connect_fake_database(self.window.controller)
         self.window.show()
@@ -99,7 +102,9 @@ class InterfaceTests(unittest.TestCase):
         window.analyze_button.click()
         wait_analysis(window.controller)
         window.editor.setFocus()
-        QtTest.QTest.keyClick(window.editor, QtCore.Qt.Key.Key_Return, QtCore.Qt.KeyboardModifier.ControlModifier)
+        QtTest.QTest.keyClick(
+            window.editor, QtCore.Qt.Key.Key_Return, QtCore.Qt.KeyboardModifier.ControlModifier
+        )
         wait_analysis(window.controller)
         self.assertEqual(len(window.controller.history.store.search()), 2)
         preview_dir = Path(__file__).resolve().parents[1] / ".artifacts"

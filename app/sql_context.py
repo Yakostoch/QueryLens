@@ -1,8 +1,7 @@
-"""Statement boundaries for the editor (not a SQL parser or validator)."""
+"""Определение границ запросов в SQL-редакторе."""
 
 import re
 from dataclasses import dataclass
-
 
 DOLLAR_QUOTE = re.compile(r"\$(?:[A-Za-z_][A-Za-z_0-9]*)?\$")
 
@@ -21,19 +20,21 @@ class SqlContext:
     protected: list[tuple[int, int, bool]]
 
     def current(self, position):
-        # Whitespace between statements belongs to the following statement.
+        # Пробелы между запросами относятся к следующему запросу.
         for index, statement in enumerate(self.statements):
             if position < statement.end:
                 return index, statement
         if self.statements:
             last = self.statements[-1]
-            if not self.text[last.end:position].strip():
+            if not self.text[last.end : position].strip():
                 return len(self.statements) - 1, last
         return None
 
     def allows_completion(self, position):
-        return not any(start < position < end or (position == end and not closed)
-                       for start, end, closed in self.protected)
+        return not any(
+            start < position < end or (position == end and not closed)
+            for start, end, closed in self.protected
+        )
 
 
 def scan_sql(text):
@@ -77,9 +78,15 @@ def scan_sql(text):
             has_code = True
             begin = position
             closer = "]" if char == "[" else char
-            # PostgreSQL E'...' strings also allow backslash escapes.
-            escaped = (char == "'" and position > 0 and text[position - 1] in "eE"
-                       and (position < 2 or not (text[position - 2].isalnum() or text[position - 2] == "_")))
+            # В строках PostgreSQL E допускается экранирование обратной косой чертой.
+            escaped = (
+                char == "'"
+                and position > 0
+                and text[position - 1] in "eE"
+                and (
+                    position < 2 or not (text[position - 2].isalnum() or text[position - 2] == "_")
+                )
+            )
             position += 1
             closed = False
             while position < length:
@@ -95,7 +102,11 @@ def scan_sql(text):
                 else:
                     position += 1
             protected.append((begin, position, closed))
-        elif char == "$" and (position == 0 or not (text[position - 1].isalnum() or text[position - 1] in "_$")) and (match := DOLLAR_QUOTE.match(text, position)):
+        elif (
+            char == "$"
+            and (position == 0 or not (text[position - 1].isalnum() or text[position - 1] in "_$"))
+            and (match := DOLLAR_QUOTE.match(text, position))
+        ):
             has_code = True
             end = text.find(match.group(), match.end())
             end_position = length if end == -1 else end + len(match.group())
@@ -115,9 +126,9 @@ def scan_sql(text):
 
 
 def qt_position(text, position):
-    """Convert a Python character index into a QTextCursor UTF-16 position."""
+    """Переводит позицию символа Python в позицию UTF-16 для Qt."""
     return len(text[:position].encode("utf-16-le")) // 2
 
 
 def python_position(text, position):
-    return len(text.encode("utf-16-le")[:position * 2].decode("utf-16-le", errors="ignore"))
+    return len(text.encode("utf-16-le")[: position * 2].decode("utf-16-le", errors="ignore"))

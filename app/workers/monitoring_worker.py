@@ -14,12 +14,17 @@ class MonitoringWorker(QtCore.QThread):
 
     def run(self):
         try:
-            for report in monitor_resources(self.options, self.interval, self.isInterruptionRequested):
+            for report in monitor_resources(
+                self.options, self.interval, self.isInterruptionRequested
+            ):
                 if not self.isInterruptionRequested():
                     self.sample_ready.emit(report)
         except ModuleNotFoundError as error:
-            message = ("Для мониторинга установите psutil в окружение проекта: python -m pip install psutil"
-                       if error.name == "psutil" else "Не найдена зависимость мониторинга.")
+            message = (
+                "Для мониторинга установите psutil в окружение проекта: python -m pip install psutil"
+                if error.name == "psutil"
+                else "Не найдена зависимость мониторинга."
+            )
             self.failed.emit(message)
         except Exception as error:
             self.failed.emit(f"Мониторинг остановлен ({type(error).__name__}).")

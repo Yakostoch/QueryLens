@@ -1,0 +1,1357 @@
+{
+  "engine": "PostgreSQL 18.6 (PGlite 0.5.12) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit",
+  "capture_environment": "PGlite WASM, real SQL/catalog queries via test-only adapter; no native psycopg wire coverage",
+  "cases": [
+    {
+      "case_id": "ap02_expression_index",
+      "sql": "SELECT id FROM querylens_lab.products WHERE lower(name)='product 42'",
+      "explain": {
+        "format": "json",
+        "analyze": false,
+        "verbose": true,
+        "plan": [
+          {
+            "Plan": {
+              "Node Type": "Index Scan",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Scan Direction": "Forward",
+              "Index Name": "products_lower_name_idx",
+              "Relation Name": "products",
+              "Schema": "querylens_lab",
+              "Alias": "products",
+              "Startup Cost": 0.28,
+              "Total Cost": 8.3,
+              "Plan Rows": 1,
+              "Plan Width": 4,
+              "Disabled": false,
+              "Output": [
+                "id"
+              ],
+              "Index Cond": "(lower(products.name) = 'product 42'::text)"
+            }
+          }
+        ]
+      },
+      "sources": {
+        "metadata": {
+          "status": "ok",
+          "data": {
+            "version": "PostgreSQL 18.6 (PGlite 0.5.12) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit",
+            "version_number": "180006",
+            "database_statistics": {
+              "numbackends": 1,
+              "xact_commit": 2,
+              "xact_rollback": 0,
+              "blks_read": 167,
+              "blks_hit": 1789,
+              "temp_files": 0,
+              "temp_bytes": 0,
+              "deadlocks": 0,
+              "stats_reset": null
+            },
+            "tables": [
+              {
+                "oid": 16396,
+                "schema": "querylens_lab",
+                "name": "products",
+                "columns": 2,
+                "indexes": 4,
+                "fields": [
+                  {
+                    "name": "id",
+                    "type": "integer",
+                    "nullable": false
+                  },
+                  {
+                    "name": "name",
+                    "type": "text",
+                    "nullable": false
+                  }
+                ],
+                "all_fields": [
+                  {
+                    "name": "id",
+                    "type": "integer",
+                    "nullable": false
+                  },
+                  {
+                    "name": "name",
+                    "type": "text",
+                    "nullable": false
+                  },
+                  {
+                    "name": "category_id",
+                    "type": "integer",
+                    "nullable": false
+                  }
+                ],
+                "schema_columns": 3,
+                "metadata_origins": [
+                  "sql",
+                  "plan"
+                ],
+                "diagnostics": {
+                  "schema_version": 1,
+                  "collected_at": "2026-10-26T18:52:18.048515+00:00",
+                  "size_scope": "relation_only",
+                  "sources": {
+                    "indexes": {
+                      "status": "ok",
+                      "data": [
+                        {
+                          "oid": 16404,
+                          "schema": "querylens_lab",
+                          "name": "products_pkey",
+                          "access_method": "btree",
+                          "definition": "CREATE UNIQUE INDEX products_pkey ON querylens_lab.products USING btree (id)",
+                          "predicate": null,
+                          "is_unique": true,
+                          "is_primary": true,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": "id",
+                              "expression": null,
+                              "operator_class_schema": "pg_catalog",
+                              "operator_class": "int4_ops",
+                              "collation_schema": null,
+                              "collation": null,
+                              "direction": "ASC",
+                              "nulls_first": false
+                            }
+                          ],
+                          "included_columns": []
+                        },
+                        {
+                          "oid": 16433,
+                          "schema": "querylens_lab",
+                          "name": "products_name_idx",
+                          "access_method": "btree",
+                          "definition": "CREATE INDEX products_name_idx ON querylens_lab.products USING btree (name)",
+                          "predicate": null,
+                          "is_unique": false,
+                          "is_primary": false,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": "name",
+                              "expression": null,
+                              "operator_class_schema": "pg_catalog",
+                              "operator_class": "text_ops",
+                              "collation_schema": "pg_catalog",
+                              "collation": "default",
+                              "direction": "ASC",
+                              "nulls_first": false
+                            }
+                          ],
+                          "included_columns": []
+                        },
+                        {
+                          "oid": 16434,
+                          "schema": "querylens_lab",
+                          "name": "products_lower_name_idx",
+                          "access_method": "btree",
+                          "definition": "CREATE INDEX products_lower_name_idx ON querylens_lab.products USING btree (lower(name))",
+                          "predicate": null,
+                          "is_unique": false,
+                          "is_primary": false,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": null,
+                              "expression": "lower(name)",
+                              "operator_class_schema": "pg_catalog",
+                              "operator_class": "text_ops",
+                              "collation_schema": "pg_catalog",
+                              "collation": "default",
+                              "direction": "ASC",
+                              "nulls_first": false
+                            }
+                          ],
+                          "included_columns": []
+                        },
+                        {
+                          "oid": 16516,
+                          "schema": "querylens_lab",
+                          "name": "products_trgm_idx",
+                          "access_method": "gin",
+                          "definition": "CREATE INDEX products_trgm_idx ON querylens_lab.products USING gin (name gin_trgm_ops)",
+                          "predicate": null,
+                          "is_unique": false,
+                          "is_primary": false,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": "name",
+                              "expression": null,
+                              "operator_class_schema": "public",
+                              "operator_class": "gin_trgm_ops",
+                              "collation_schema": "pg_catalog",
+                              "collation": "default",
+                              "direction": null,
+                              "nulls_first": null
+                            }
+                          ],
+                          "included_columns": []
+                        }
+                      ],
+                      "error": null
+                    },
+                    "constraints": {
+                      "status": "ok",
+                      "data": [
+                        {
+                          "oid": 16399,
+                          "name": "products_id_not_null",
+                          "kind": "n",
+                          "definition": "NOT NULL id",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": null,
+                          "columns": [
+                            "id"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        },
+                        {
+                          "oid": 16400,
+                          "name": "products_name_not_null",
+                          "kind": "n",
+                          "definition": "NOT NULL name",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": null,
+                          "columns": [
+                            "name"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        },
+                        {
+                          "oid": 16401,
+                          "name": "products_category_id_not_null",
+                          "kind": "n",
+                          "definition": "NOT NULL category_id",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": null,
+                          "columns": [
+                            "category_id"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        },
+                        {
+                          "oid": 16405,
+                          "name": "products_pkey",
+                          "kind": "p",
+                          "definition": "PRIMARY KEY (id)",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": 16404,
+                          "columns": [
+                            "id"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        }
+                      ],
+                      "error": null
+                    },
+                    "relation": {
+                      "status": "ok",
+                      "data": {
+                        "relation_kind": "r",
+                        "is_partition": false,
+                        "estimated_rows": 5000,
+                        "estimated_pages": 33,
+                        "options": null,
+                        "main_fork_bytes": 270336,
+                        "table_bytes": 303104,
+                        "indexes_bytes": 712704,
+                        "total_bytes": 1015808,
+                        "parent_oids": [],
+                        "last_analyze": "2026-10-26T18:52:14.958Z",
+                        "last_autoanalyze": null,
+                        "n_mod_since_analyze": 0,
+                        "n_live_tup": 0,
+                        "n_dead_tup": 0
+                      },
+                      "error": null
+                    },
+                    "column_statistics": {
+                      "status": "ok",
+                      "data": [
+                        {
+                          "column_name": "category_id",
+                          "inherited": false,
+                          "null_frac": 0,
+                          "avg_width": 4,
+                          "n_distinct": 10,
+                          "correlation": 0.10089961
+                        },
+                        {
+                          "column_name": "id",
+                          "inherited": false,
+                          "null_frac": 0,
+                          "avg_width": 4,
+                          "n_distinct": -1,
+                          "correlation": 1
+                        },
+                        {
+                          "column_name": "name",
+                          "inherited": false,
+                          "null_frac": 0,
+                          "avg_width": 12,
+                          "n_distinct": -1,
+                          "correlation": 0.30210656
+                        }
+                      ],
+                      "error": null
+                    }
+                  }
+                }
+              }
+            ],
+            "additional_relation_errors": [],
+            "metadata_schema_version": 2,
+            "metadata_scope": "query",
+            "metadata_sql": "SELECT id FROM querylens_lab.products WHERE lower(name)='product 42'",
+            "database_size_bytes": 9068667
+          },
+          "error": null,
+          "started_at": "2026-10-26T18:52:18.028548+00:00",
+          "finished_at": "2026-10-26T18:52:18.053809+00:00"
+        },
+        "configuration": {
+          "status": "ok",
+          "data": {
+            "settings": [
+              {
+                "name": "autovacuum",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_analyze_scale_factor",
+                "setting": "0.1",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_analyze_threshold",
+                "setting": "50",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_vacuum_scale_factor",
+                "setting": "0.2",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_vacuum_threshold",
+                "setting": "50",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "checkpoint_completion_target",
+                "setting": "0.9",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "checkpoint_timeout",
+                "setting": "300",
+                "unit": "s",
+                "vartype": "integer",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "compute_query_id",
+                "setting": "auto",
+                "unit": null,
+                "vartype": "enum",
+                "source": "default",
+                "context": "superuser",
+                "pending_restart": false
+              },
+              {
+                "name": "default_statistics_target",
+                "setting": "100",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "effective_cache_size",
+                "setting": "524288",
+                "unit": "8kB",
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "effective_io_concurrency",
+                "setting": "16",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_hashjoin",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_indexonlyscan",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_indexscan",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_mergejoin",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_nestloop",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_seqscan",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "hash_mem_multiplier",
+                "setting": "2",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit_above_cost",
+                "setting": "100000",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit_inline_above_cost",
+                "setting": "500000",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit_optimize_above_cost",
+                "setting": "500000",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "maintenance_work_mem",
+                "setting": "65536",
+                "unit": "kB",
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "max_connections",
+                "setting": "100",
+                "unit": null,
+                "vartype": "integer",
+                "source": "configuration file",
+                "context": "postmaster",
+                "pending_restart": false
+              },
+              {
+                "name": "max_parallel_workers",
+                "setting": "0",
+                "unit": null,
+                "vartype": "integer",
+                "source": "command line",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "max_parallel_workers_per_gather",
+                "setting": "0",
+                "unit": null,
+                "vartype": "integer",
+                "source": "command line",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "max_wal_size",
+                "setting": "1024",
+                "unit": "MB",
+                "vartype": "integer",
+                "source": "configuration file",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "max_worker_processes",
+                "setting": "0",
+                "unit": null,
+                "vartype": "integer",
+                "source": "command line",
+                "context": "postmaster",
+                "pending_restart": false
+              },
+              {
+                "name": "random_page_cost",
+                "setting": "4",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "seq_page_cost",
+                "setting": "1",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "shared_buffers",
+                "setting": "16384",
+                "unit": "8kB",
+                "vartype": "integer",
+                "source": "configuration file",
+                "context": "postmaster",
+                "pending_restart": false
+              },
+              {
+                "name": "track_io_timing",
+                "setting": "off",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "superuser",
+                "pending_restart": false
+              },
+              {
+                "name": "work_mem",
+                "setting": "4096",
+                "unit": "kB",
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              }
+            ],
+            "settings_unavailable": []
+          },
+          "error": null,
+          "started_at": "2026-10-26T18:52:18.053821+00:00",
+          "finished_at": "2026-10-26T18:52:18.057247+00:00"
+        }
+      }
+    },
+    {
+      "case_id": "ap03_trigram_selective",
+      "sql": "SELECT id FROM querylens_lab.products WHERE name LIKE '%model 100%'",
+      "explain": {
+        "format": "json",
+        "analyze": false,
+        "verbose": true,
+        "plan": [
+          {
+            "Plan": {
+              "Node Type": "Bitmap Heap Scan",
+              "Parallel Aware": false,
+              "Async Capable": false,
+              "Relation Name": "products",
+              "Schema": "querylens_lab",
+              "Alias": "products",
+              "Startup Cost": 64.91,
+              "Total Cost": 68.92,
+              "Plan Rows": 1,
+              "Plan Width": 4,
+              "Disabled": false,
+              "Output": [
+                "id"
+              ],
+              "Recheck Cond": "(products.name ~~ '%model 100%'::text)",
+              "Plans": [
+                {
+                  "Node Type": "Bitmap Index Scan",
+                  "Parent Relationship": "Outer",
+                  "Parallel Aware": false,
+                  "Async Capable": false,
+                  "Index Name": "products_trgm_idx",
+                  "Startup Cost": 0,
+                  "Total Cost": 64.91,
+                  "Plan Rows": 1,
+                  "Plan Width": 0,
+                  "Disabled": false,
+                  "Index Cond": "(products.name ~~ '%model 100%'::text)"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "sources": {
+        "metadata": {
+          "status": "ok",
+          "data": {
+            "version": "PostgreSQL 18.6 (PGlite 0.5.12) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit",
+            "version_number": "180006",
+            "database_statistics": {
+              "numbackends": 1,
+              "xact_commit": 2,
+              "xact_rollback": 0,
+              "blks_read": 167,
+              "blks_hit": 1789,
+              "temp_files": 0,
+              "temp_bytes": 0,
+              "deadlocks": 0,
+              "stats_reset": null
+            },
+            "tables": [
+              {
+                "oid": 16396,
+                "schema": "querylens_lab",
+                "name": "products",
+                "columns": 2,
+                "indexes": 4,
+                "fields": [
+                  {
+                    "name": "id",
+                    "type": "integer",
+                    "nullable": false
+                  },
+                  {
+                    "name": "name",
+                    "type": "text",
+                    "nullable": false
+                  }
+                ],
+                "all_fields": [
+                  {
+                    "name": "id",
+                    "type": "integer",
+                    "nullable": false
+                  },
+                  {
+                    "name": "name",
+                    "type": "text",
+                    "nullable": false
+                  },
+                  {
+                    "name": "category_id",
+                    "type": "integer",
+                    "nullable": false
+                  }
+                ],
+                "schema_columns": 3,
+                "metadata_origins": [
+                  "sql",
+                  "plan"
+                ],
+                "diagnostics": {
+                  "schema_version": 1,
+                  "collected_at": "2026-10-26T18:52:18.115989+00:00",
+                  "size_scope": "relation_only",
+                  "sources": {
+                    "indexes": {
+                      "status": "ok",
+                      "data": [
+                        {
+                          "oid": 16404,
+                          "schema": "querylens_lab",
+                          "name": "products_pkey",
+                          "access_method": "btree",
+                          "definition": "CREATE UNIQUE INDEX products_pkey ON querylens_lab.products USING btree (id)",
+                          "predicate": null,
+                          "is_unique": true,
+                          "is_primary": true,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": "id",
+                              "expression": null,
+                              "operator_class_schema": "pg_catalog",
+                              "operator_class": "int4_ops",
+                              "collation_schema": null,
+                              "collation": null,
+                              "direction": "ASC",
+                              "nulls_first": false
+                            }
+                          ],
+                          "included_columns": []
+                        },
+                        {
+                          "oid": 16433,
+                          "schema": "querylens_lab",
+                          "name": "products_name_idx",
+                          "access_method": "btree",
+                          "definition": "CREATE INDEX products_name_idx ON querylens_lab.products USING btree (name)",
+                          "predicate": null,
+                          "is_unique": false,
+                          "is_primary": false,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": "name",
+                              "expression": null,
+                              "operator_class_schema": "pg_catalog",
+                              "operator_class": "text_ops",
+                              "collation_schema": "pg_catalog",
+                              "collation": "default",
+                              "direction": "ASC",
+                              "nulls_first": false
+                            }
+                          ],
+                          "included_columns": []
+                        },
+                        {
+                          "oid": 16434,
+                          "schema": "querylens_lab",
+                          "name": "products_lower_name_idx",
+                          "access_method": "btree",
+                          "definition": "CREATE INDEX products_lower_name_idx ON querylens_lab.products USING btree (lower(name))",
+                          "predicate": null,
+                          "is_unique": false,
+                          "is_primary": false,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": null,
+                              "expression": "lower(name)",
+                              "operator_class_schema": "pg_catalog",
+                              "operator_class": "text_ops",
+                              "collation_schema": "pg_catalog",
+                              "collation": "default",
+                              "direction": "ASC",
+                              "nulls_first": false
+                            }
+                          ],
+                          "included_columns": []
+                        },
+                        {
+                          "oid": 16516,
+                          "schema": "querylens_lab",
+                          "name": "products_trgm_idx",
+                          "access_method": "gin",
+                          "definition": "CREATE INDEX products_trgm_idx ON querylens_lab.products USING gin (name gin_trgm_ops)",
+                          "predicate": null,
+                          "is_unique": false,
+                          "is_primary": false,
+                          "is_valid": true,
+                          "is_ready": true,
+                          "is_live": true,
+                          "is_immediate": true,
+                          "nulls_not_distinct": false,
+                          "keys": [
+                            {
+                              "position": 1,
+                              "column_name": "name",
+                              "expression": null,
+                              "operator_class_schema": "public",
+                              "operator_class": "gin_trgm_ops",
+                              "collation_schema": "pg_catalog",
+                              "collation": "default",
+                              "direction": null,
+                              "nulls_first": null
+                            }
+                          ],
+                          "included_columns": []
+                        }
+                      ],
+                      "error": null
+                    },
+                    "constraints": {
+                      "status": "ok",
+                      "data": [
+                        {
+                          "oid": 16399,
+                          "name": "products_id_not_null",
+                          "kind": "n",
+                          "definition": "NOT NULL id",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": null,
+                          "columns": [
+                            "id"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        },
+                        {
+                          "oid": 16400,
+                          "name": "products_name_not_null",
+                          "kind": "n",
+                          "definition": "NOT NULL name",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": null,
+                          "columns": [
+                            "name"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        },
+                        {
+                          "oid": 16401,
+                          "name": "products_category_id_not_null",
+                          "kind": "n",
+                          "definition": "NOT NULL category_id",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": null,
+                          "columns": [
+                            "category_id"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        },
+                        {
+                          "oid": 16405,
+                          "name": "products_pkey",
+                          "kind": "p",
+                          "definition": "PRIMARY KEY (id)",
+                          "is_validated": true,
+                          "is_deferrable": false,
+                          "initially_deferred": false,
+                          "is_enforced": true,
+                          "supporting_index_oid": 16404,
+                          "columns": [
+                            "id"
+                          ],
+                          "referenced_relation_oid": null,
+                          "referenced_schema": null,
+                          "referenced_relation": null,
+                          "referenced_columns": []
+                        }
+                      ],
+                      "error": null
+                    },
+                    "relation": {
+                      "status": "ok",
+                      "data": {
+                        "relation_kind": "r",
+                        "is_partition": false,
+                        "estimated_rows": 5000,
+                        "estimated_pages": 33,
+                        "options": null,
+                        "main_fork_bytes": 270336,
+                        "table_bytes": 303104,
+                        "indexes_bytes": 712704,
+                        "total_bytes": 1015808,
+                        "parent_oids": [],
+                        "last_analyze": "2026-10-26T18:52:14.958Z",
+                        "last_autoanalyze": null,
+                        "n_mod_since_analyze": 0,
+                        "n_live_tup": 0,
+                        "n_dead_tup": 0
+                      },
+                      "error": null
+                    },
+                    "column_statistics": {
+                      "status": "ok",
+                      "data": [
+                        {
+                          "column_name": "category_id",
+                          "inherited": false,
+                          "null_frac": 0,
+                          "avg_width": 4,
+                          "n_distinct": 10,
+                          "correlation": 0.10089961
+                        },
+                        {
+                          "column_name": "id",
+                          "inherited": false,
+                          "null_frac": 0,
+                          "avg_width": 4,
+                          "n_distinct": -1,
+                          "correlation": 1
+                        },
+                        {
+                          "column_name": "name",
+                          "inherited": false,
+                          "null_frac": 0,
+                          "avg_width": 12,
+                          "n_distinct": -1,
+                          "correlation": 0.30210656
+                        }
+                      ],
+                      "error": null
+                    }
+                  }
+                }
+              }
+            ],
+            "additional_relation_errors": [],
+            "metadata_schema_version": 2,
+            "metadata_scope": "query",
+            "metadata_sql": "SELECT id FROM querylens_lab.products WHERE name LIKE '%model 100%'",
+            "database_size_bytes": 9068667
+          },
+          "error": null,
+          "started_at": "2026-10-26T18:52:18.093407+00:00",
+          "finished_at": "2026-10-26T18:52:18.120984+00:00"
+        },
+        "configuration": {
+          "status": "ok",
+          "data": {
+            "settings": [
+              {
+                "name": "autovacuum",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_analyze_scale_factor",
+                "setting": "0.1",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_analyze_threshold",
+                "setting": "50",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_vacuum_scale_factor",
+                "setting": "0.2",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "autovacuum_vacuum_threshold",
+                "setting": "50",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "checkpoint_completion_target",
+                "setting": "0.9",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "checkpoint_timeout",
+                "setting": "300",
+                "unit": "s",
+                "vartype": "integer",
+                "source": "default",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "compute_query_id",
+                "setting": "auto",
+                "unit": null,
+                "vartype": "enum",
+                "source": "default",
+                "context": "superuser",
+                "pending_restart": false
+              },
+              {
+                "name": "default_statistics_target",
+                "setting": "100",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "effective_cache_size",
+                "setting": "524288",
+                "unit": "8kB",
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "effective_io_concurrency",
+                "setting": "16",
+                "unit": null,
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_hashjoin",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_indexonlyscan",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_indexscan",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_mergejoin",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_nestloop",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "enable_seqscan",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "hash_mem_multiplier",
+                "setting": "2",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit",
+                "setting": "on",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit_above_cost",
+                "setting": "100000",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit_inline_above_cost",
+                "setting": "500000",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "jit_optimize_above_cost",
+                "setting": "500000",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "maintenance_work_mem",
+                "setting": "65536",
+                "unit": "kB",
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "max_connections",
+                "setting": "100",
+                "unit": null,
+                "vartype": "integer",
+                "source": "configuration file",
+                "context": "postmaster",
+                "pending_restart": false
+              },
+              {
+                "name": "max_parallel_workers",
+                "setting": "0",
+                "unit": null,
+                "vartype": "integer",
+                "source": "command line",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "max_parallel_workers_per_gather",
+                "setting": "0",
+                "unit": null,
+                "vartype": "integer",
+                "source": "command line",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "max_wal_size",
+                "setting": "1024",
+                "unit": "MB",
+                "vartype": "integer",
+                "source": "configuration file",
+                "context": "sighup",
+                "pending_restart": false
+              },
+              {
+                "name": "max_worker_processes",
+                "setting": "0",
+                "unit": null,
+                "vartype": "integer",
+                "source": "command line",
+                "context": "postmaster",
+                "pending_restart": false
+              },
+              {
+                "name": "random_page_cost",
+                "setting": "4",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "seq_page_cost",
+                "setting": "1",
+                "unit": null,
+                "vartype": "real",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              },
+              {
+                "name": "shared_buffers",
+                "setting": "16384",
+                "unit": "8kB",
+                "vartype": "integer",
+                "source": "configuration file",
+                "context": "postmaster",
+                "pending_restart": false
+              },
+              {
+                "name": "track_io_timing",
+                "setting": "off",
+                "unit": null,
+                "vartype": "bool",
+                "source": "default",
+                "context": "superuser",
+                "pending_restart": false
+              },
+              {
+                "name": "work_mem",
+                "setting": "4096",
+                "unit": "kB",
+                "vartype": "integer",
+                "source": "default",
+                "context": "user",
+                "pending_restart": false
+              }
+            ],
+            "settings_unavailable": []
+          },
+          "error": null,
+          "started_at": "2026-10-26T18:52:18.120994+00:00",
+          "finished_at": "2026-10-26T18:52:18.125367+00:00"
+        }
+      }
+    }
+  ]
+}

@@ -22,8 +22,9 @@ class SettingsController(QtCore.QObject):
 
     @property
     def values(self):
-        return SettingsValues(self._preferences.theme, self._preferences.font_size,
-                              self._preferences.save_history)
+        return SettingsValues(
+            self._preferences.theme, self._preferences.font_size, self._preferences.save_history
+        )
 
     def save(self, theme, font_size, save_history):
         try:

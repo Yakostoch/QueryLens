@@ -1,4 +1,5 @@
 """Измерения ОС QueryLens; это не ресурсы одного SQL и не сведения удалённого сервера."""
+
 import platform
 import time
 from datetime import datetime, timezone
@@ -37,11 +38,13 @@ def collect_system(samples=5, interval=1, cancelled=lambda: False, options=None)
             return None
 
     result = {
-        "os": platform.system(), "os_release": platform.release(),
+        "os": platform.system(),
+        "os_release": platform.release(),
         "architecture": platform.machine(),
         "physical_cores": psutil.cpu_count(logical=False) if options.get("cpu") else None,
         "logical_cores": psutil.cpu_count(logical=True) if options.get("cpu") else None,
-        "ram_total_bytes": psutil.virtual_memory().total if options.get("ram") else None, "samples": [],
+        "ram_total_bytes": psutil.virtual_memory().total if options.get("ram") else None,
+        "samples": [],
         "options": dict(options),
     }
     if options.get("cpu"):
@@ -59,12 +62,16 @@ def collect_system(samples=5, interval=1, cancelled=lambda: False, options=None)
         after, now = disks(), time.monotonic()
         memory = psutil.virtual_memory() if options.get("ram") else None
         swap = psutil.swap_memory() if options.get("ram") else None
-        result["samples"].append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "interval_seconds": now - started,
-            "cpu_percent_per_core": cpu, "ram_available_bytes": memory.available if memory else None,
-            "ram_used_percent": memory.percent if memory else None, "swap_used_bytes": swap.used if swap else None,
-            "disk_io_rates": io_rates(before, after, now - started),
-        })
+        result["samples"].append(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "interval_seconds": now - started,
+                "cpu_percent_per_core": cpu,
+                "ram_available_bytes": memory.available if memory else None,
+                "ram_used_percent": memory.percent if memory else None,
+                "swap_used_bytes": swap.used if swap else None,
+                "disk_io_rates": io_rates(before, after, now - started),
+            }
+        )
         before, started = after, now
     return result

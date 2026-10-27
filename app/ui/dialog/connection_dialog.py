@@ -1,5 +1,6 @@
 from PySide6 import QtCore, QtWidgets
 
+
 class ConnectionDialog(QtWidgets.QDialog):
     connection_requested = QtCore.Signal(object, bool)
 
@@ -13,7 +14,9 @@ class ConnectionDialog(QtWidgets.QDialog):
         title = QtWidgets.QLabel("Подключение к СУБД")
         title.setObjectName("brand")
         layout.addWidget(title)
-        hint = QtWidgets.QLabel("Локальная PostgreSQL: localhost, 127.0.0.1 или ::1. Пароль используется только в памяти.")
+        hint = QtWidgets.QLabel(
+            "Локальная PostgreSQL: localhost, 127.0.0.1 или ::1. Пароль используется только в памяти."
+        )
         hint.setObjectName("muted")
         hint.setWordWrap(True)
         layout.addWidget(hint)
@@ -39,14 +42,23 @@ class ConnectionDialog(QtWidgets.QDialog):
         self.sslmode.addItem("Предпочитать SSL", "prefer")
         self.sslmode.addItem("Требовать SSL", "require")
         self.sslmode.addItem("Без SSL", "disable")
-        for label, widget in (("Сервер", self.host), ("Порт", self.port),
-                              ("База данных", self.database), ("Пользователь", self.user),
-                              ("Пароль", self.password), ("SSL", self.sslmode)):
+        for label, widget in (
+            ("Сервер", self.host),
+            ("Порт", self.port),
+            ("База данных", self.database),
+            ("Пользователь", self.user),
+            ("Пароль", self.password),
+            ("SSL", self.sslmode),
+        ):
             form.addRow(label, widget)
         layout.addWidget(self.fields)
-        for name, widget in (("Сервер", self.host), ("Порт", self.port),
-                             ("База данных", self.database), ("Пользователь", self.user),
-                             ("Пароль", self.password)):
+        for name, widget in (
+            ("Сервер", self.host),
+            ("Порт", self.port),
+            ("База данных", self.database),
+            ("Пользователь", self.user),
+            ("Пароль", self.password),
+        ):
             widget.setAccessibleName(name)
 
         self.message = QtWidgets.QLabel("Введите параметры и проверьте подключение.")
@@ -70,10 +82,17 @@ class ConnectionDialog(QtWidgets.QDialog):
         self.user.setPlaceholderText("postgres")
 
     def request_connection(self, test_only=False):
-        self.connection_requested.emit(dict(
-            host=self.host.text(), port=self.port.value(), database=self.database.text(),
-            user=self.user.text(), password=self.password.text(), sslmode=self.sslmode.currentData(),
-        ), test_only)
+        self.connection_requested.emit(
+            dict(
+                host=self.host.text(),
+                port=self.port.value(),
+                database=self.database.text(),
+                user=self.user.text(),
+                password=self.password.text(),
+                sslmode=self.sslmode.currentData(),
+            ),
+            test_only,
+        )
 
     def set_busy(self, busy):
         self.fields.setEnabled(not busy)

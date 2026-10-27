@@ -1,0 +1,2018 @@
+[
+  {
+    "case_id": "ap01_star",
+    "primary_rule": "AP01",
+    "category": "potential",
+    "sql": "SELECT * FROM querylens_lab.users",
+    "expected_candidates": [
+      "AP01"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Нужность всех полей неизвестна.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap01_alias_star",
+    "primary_rule": "AP01",
+    "category": "valid_construct",
+    "sql": "SELECT u.* FROM querylens_lab.users u WHERE u.id=1",
+    "expected_candidates": [
+      "AP01"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Одна строка со всеми полями может быть нужна.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap01_explicit",
+    "primary_rule": "AP01",
+    "category": "good",
+    "sql": "SELECT id,email FROM querylens_lab.users WHERE id=1",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Явная узкая проекция.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap01_pruned",
+    "primary_rule": "AP01",
+    "category": "complex",
+    "sql": "SELECT x.id FROM (SELECT * FROM querylens_lab.users) x WHERE x.id=1",
+    "expected_candidates": [
+      "AP01"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Звёздочка подзапроса может быть устранена планировщиком.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap02_lower",
+    "primary_rule": "AP02",
+    "category": "potential",
+    "sql": "SELECT id FROM querylens_lab.users WHERE lower(email)='user42@example.com'",
+    "expected_candidates": [
+      "AP02"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Выражение и его индекс надо сопоставить.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap02_arithmetic",
+    "primary_rule": "AP02",
+    "category": "potential",
+    "sql": "SELECT id FROM querylens_lab.users WHERE id + 1=43",
+    "expected_candidates": [
+      "AP02"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Переписывание требует проверки переполнения.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap02_constant",
+    "primary_rule": "AP02",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.users WHERE created_at >= to_timestamp(1700000000)",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Функция над константой.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap02_cast",
+    "primary_rule": "AP02",
+    "category": "potential",
+    "sql": "SELECT id FROM querylens_lab.users WHERE id::text='42'",
+    "expected_candidates": [
+      "AP02"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Приведение над столбцом, не над константой.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap03_substring",
+    "primary_rule": "AP03",
+    "category": "potential",
+    "sql": "SELECT id FROM querylens_lab.products WHERE name LIKE '%phone%'",
+    "expected_candidates": [
+      "AP03"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Нужен поиск подстроки.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap03_prefix",
+    "primary_rule": "AP03",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.products WHERE name LIKE 'phone%'",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Известен префикс; это не начальный %.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap03_escape",
+    "primary_rule": "AP03",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.products WHERE name LIKE '!%phone%' ESCAPE '!'",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Первый % буквальный.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap03_short",
+    "primary_rule": "AP03",
+    "category": "edge",
+    "sql": "SELECT id FROM querylens_lab.products WHERE name ILIKE '%ab%'",
+    "expected_candidates": [
+      "AP03"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Короткий шаблон не обещает полезных триграмм.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap04_or",
+    "primary_rule": "AP04",
+    "category": "potential",
+    "sql": "SELECT id FROM querylens_lab.users WHERE email='a' OR city_id=1",
+    "expected_candidates": [
+      "AP04"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Индексы и селективность ветвей могут различаться.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap04_good_or",
+    "primary_rule": "AP04",
+    "category": "valid_construct",
+    "sql": "SELECT id FROM querylens_lab.users WHERE id=1 OR id=2",
+    "expected_candidates": [
+      "AP04"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "OR может эффективно выполняться.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap04_in",
+    "primary_rule": "AP04",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.users WHERE id IN (1,2)",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "IN не является синтаксической группой OR.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap04_grouped",
+    "primary_rule": "AP04",
+    "category": "complex",
+    "sql": "SELECT id FROM querylens_lab.users WHERE active AND (city_id=1 OR lower(email)='x')",
+    "expected_candidates": [
+      "AP02",
+      "AP04"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Нельзя терять окружающее AND и скобки.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap05_notin",
+    "primary_rule": "AP05",
+    "category": "potential",
+    "sql": "SELECT id FROM querylens_lab.users WHERE id NOT IN (SELECT user_id FROM querylens_lab.orders)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Внутренняя сторона допускает NULL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap05_notexists",
+    "primary_rule": "AP05",
+    "category": "good",
+    "sql": "SELECT u.id FROM querylens_lab.users u WHERE NOT EXISTS (SELECT 1 FROM querylens_lab.orders o WHERE o.user_id=u.id)",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Anti-условие без автоматического утверждения эквивалентности NOT IN.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap05_filtered",
+    "primary_rule": "AP05",
+    "category": "valid_construct",
+    "sql": "SELECT id FROM querylens_lab.users WHERE id NOT IN (SELECT user_id FROM querylens_lab.orders WHERE user_id IS NOT NULL)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "NULL исключён фильтром; конструкция не обязательно плохая.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap05_row",
+    "primary_rule": "AP05",
+    "category": "complex",
+    "sql": "SELECT id FROM querylens_lab.users WHERE (id,city_id) NOT IN (SELECT user_id,category_id FROM querylens_lab.orders)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Многоколоночная NULL-семантика.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap06_distinct",
+    "primary_rule": "AP06",
+    "category": "potential",
+    "sql": "SELECT DISTINCT u.id FROM querylens_lab.users u JOIN querylens_lab.orders o ON o.user_id=u.id",
+    "expected_candidates": [
+      "AP06",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "DISTINCT компенсирует кратность; нужна семантика результата.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap06_exists",
+    "primary_rule": "AP06",
+    "category": "good",
+    "sql": "SELECT u.id FROM querylens_lab.users u WHERE EXISTS (SELECT 1 FROM querylens_lab.orders o WHERE o.user_id=u.id)",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Нужен факт наличия.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap06_required",
+    "primary_rule": "AP06",
+    "category": "valid_construct",
+    "sql": "SELECT DISTINCT city_id FROM querylens_lab.users",
+    "expected_candidates": [
+      "AP06"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Уникальные города действительно нужны.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap06_distincton",
+    "primary_rule": "AP06",
+    "category": "complex",
+    "sql": "SELECT DISTINCT ON (user_id) id,user_id FROM querylens_lab.orders ORDER BY user_id,created_at DESC,id DESC",
+    "expected_candidates": [
+      "AP06",
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Выбор последнего заказа; DISTINCT ON сохраняет особый смысл.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap07_sort",
+    "primary_rule": "AP07",
+    "category": "potential",
+    "sql": "SELECT id,total FROM querylens_lab.orders ORDER BY total DESC,id",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Сортируется полный результат.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap07_top",
+    "primary_rule": "AP07",
+    "category": "valid_construct",
+    "sql": "SELECT id,created_at FROM querylens_lab.orders ORDER BY created_at DESC,id DESC LIMIT 10",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Малый LIMIT с подходящим индексом может быть эффективен.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap07_noorder",
+    "primary_rule": "AP07",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.orders WHERE id=1",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Нет требования к порядку.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap07_windowonly",
+    "primary_rule": "AP07",
+    "category": "good",
+    "sql": "SELECT id,row_number() OVER (ORDER BY created_at,id) AS rn FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Порядок окна не является внешним ORDER BY.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap08_deep",
+    "primary_rule": "AP08",
+    "category": "potential",
+    "sql": "SELECT id FROM querylens_lab.orders ORDER BY id LIMIT 10 OFFSET 100000",
+    "expected_candidates": [
+      "AP07",
+      "AP08"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Глубокая пагинация; небольшой LIMIT не доказывает малую работу.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap08_zero",
+    "primary_rule": "AP08",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.orders ORDER BY id LIMIT 10 OFFSET 0",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Нулевой OFFSET не создаёт пропускания.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap08_keyset",
+    "primary_rule": "AP08",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.orders WHERE id>100 ORDER BY id LIMIT 10",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Курсорный вариант при известном курсоре.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap08_no_limit",
+    "primary_rule": "AP08",
+    "category": "edge",
+    "sql": "SELECT id FROM querylens_lab.orders ORDER BY id OFFSET 10",
+    "expected_candidates": [
+      "AP07",
+      "AP08"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "OFFSET без LIMIT тоже поддерживается.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap09_key",
+    "primary_rule": "AP09",
+    "category": "potential",
+    "sql": "SELECT user_id,count(*) FROM querylens_lab.orders GROUP BY user_id HAVING user_id=1",
+    "expected_candidates": [
+      "AP09",
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Планировщик может сам перенести фильтр.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap09_aggregate",
+    "primary_rule": "AP09",
+    "category": "valid_construct",
+    "sql": "SELECT user_id,count(*) FROM querylens_lab.orders GROUP BY user_id HAVING count(*)>10",
+    "expected_candidates": [
+      "AP09",
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Агрегатный фильтр нельзя просто перенести в WHERE.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap09_where",
+    "primary_rule": "AP09",
+    "category": "good",
+    "sql": "SELECT user_id,sum(total) FROM querylens_lab.orders WHERE user_id=1 GROUP BY user_id",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Ранний фильтр явно записан.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap09_rollup",
+    "primary_rule": "AP09",
+    "category": "complex",
+    "sql": "SELECT user_id,sum(total) FROM querylens_lab.orders GROUP BY ROLLUP(user_id) HAVING user_id=1",
+    "expected_candidates": [
+      "AP09"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "ROLLUP требует отдельного доказательства.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap10_parent",
+    "primary_rule": "AP10",
+    "category": "insufficient",
+    "sql": "SELECT id FROM querylens_lab.users ORDER BY id LIMIT 10",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Один SQL не показывает клиентский N+1.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap10_child",
+    "primary_rule": "AP10",
+    "category": "insufficient",
+    "sql": "SELECT id,total FROM querylens_lab.orders WHERE user_id=1",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Повторяемый шаблон без трассы не доказывает N+1.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap10_batch",
+    "primary_rule": "AP10",
+    "category": "good",
+    "sql": "SELECT id,user_id FROM querylens_lab.orders WHERE user_id=ANY(ARRAY[1,2,3])",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Пакетная загрузка не показывает число операций приложения.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap10_serverloop",
+    "primary_rule": "AP10",
+    "category": "complex",
+    "sql": "SELECT u.id,o.id FROM querylens_lab.users u JOIN querylens_lab.orders o ON o.user_id=u.id WHERE u.id<5",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Серверный Nested Loop не равен клиентскому N+1.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap11_existence",
+    "primary_rule": "AP11",
+    "category": "potential",
+    "sql": "SELECT count(*)>0 AS present FROM querylens_lab.orders WHERE user_id=1",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Булева проверка существования выражена явно.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap11_exists",
+    "primary_rule": "AP11",
+    "category": "good",
+    "sql": "SELECT EXISTS(SELECT 1 FROM querylens_lab.orders WHERE user_id=1)",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "EXISTS не является COUNT.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap11_exact",
+    "primary_rule": "AP11",
+    "category": "valid_construct",
+    "sql": "SELECT count(*) FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Точный подсчёт может быть нужен, контракт неизвестен.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap11_nullable",
+    "primary_rule": "AP11",
+    "category": "edge",
+    "sql": "SELECT count(user_id)>0 FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "COUNT(column) не считает NULL; наивная замена на EXISTS недопустима.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap12_cross",
+    "primary_rule": "AP12",
+    "category": "potential",
+    "sql": "SELECT u.id,o.id FROM querylens_lab.users u CROSS JOIN querylens_lab.orders o",
+    "expected_candidates": [
+      "AP12",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Намеренность произведения неизвестна.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap12_comma_link",
+    "primary_rule": "AP12",
+    "category": "valid_construct",
+    "sql": "SELECT u.id,o.id FROM querylens_lab.users u,querylens_lab.orders o WHERE o.user_id=u.id",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Связь есть в WHERE; кандидат JOIN не диагноз произведения.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap12_one_row",
+    "primary_rule": "AP12",
+    "category": "valid_construct",
+    "sql": "SELECT u.id,c.x FROM querylens_lab.users u CROSS JOIN (SELECT 1 AS x) c",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Однострочный источник намеренный.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap12_lateral",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT u.id,x.id FROM querylens_lab.users u CROSS JOIN LATERAL (SELECT o.id FROM querylens_lab.orders o WHERE o.user_id=u.id ORDER BY o.id LIMIT 1) x",
+    "expected_candidates": [
+      "AP07",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "LATERAL зависит от внешней строки.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap13_materialized",
+    "primary_rule": "AP13",
+    "category": "potential",
+    "sql": "WITH x AS MATERIALIZED (SELECT id,user_id FROM querylens_lab.orders) SELECT id FROM x WHERE user_id=1",
+    "expected_candidates": [
+      "AP13"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Проверяется место фильтра, не одно слово WITH.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap13_inline",
+    "primary_rule": "AP13",
+    "category": "valid_construct",
+    "sql": "WITH x AS NOT MATERIALIZED (SELECT id,user_id FROM querylens_lab.orders) SELECT id FROM x WHERE user_id=1",
+    "expected_candidates": [
+      "AP13"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Встраивание может быть эффективно.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap13_reused",
+    "primary_rule": "AP13",
+    "category": "complex",
+    "sql": "WITH x AS MATERIALIZED (SELECT user_id,sum(total) AS s FROM querylens_lab.orders GROUP BY user_id) SELECT a.user_id FROM x a JOIN x b ON a.user_id=b.user_id",
+    "expected_candidates": [
+      "AP13",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Материализация может экономить повторную работу.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap13_recursive",
+    "primary_rule": "AP13",
+    "category": "complex",
+    "sql": "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<5) SELECT x FROM n",
+    "expected_candidates": [
+      "AP13"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Рекурсивный CTE не переписывается как обычный.",
+    "expected_metadata_status": "error"
+  },
+  {
+    "case_id": "ap14_rank",
+    "primary_rule": "AP14",
+    "category": "potential",
+    "sql": "SELECT id,row_number() OVER (PARTITION BY user_id ORDER BY created_at DESC,id DESC) AS rn FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Объём и порядок окна требуют плана.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap14_two",
+    "primary_rule": "AP14",
+    "category": "complex",
+    "sql": "SELECT id,row_number() OVER (ORDER BY created_at,id),rank() OVER (ORDER BY total DESC) FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Разные окна могут требовать смены порядка.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap14_count",
+    "primary_rule": "AP14",
+    "category": "valid_construct",
+    "sql": "SELECT id,count(*) OVER () FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Оконный COUNT относится к AP14, не проверке существования.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap14_outerfilter",
+    "primary_rule": "AP14",
+    "category": "complex",
+    "sql": "SELECT id FROM (SELECT id,user_id,row_number() OVER (PARTITION BY user_id ORDER BY id) AS rn FROM querylens_lab.orders) x WHERE rn=1",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Перенос фильтра может менять значения окна.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap15_join",
+    "primary_rule": "AP15",
+    "category": "potential",
+    "sql": "SELECT u.id,o.id FROM querylens_lab.users u JOIN querylens_lab.orders o ON o.user_id=u.id WHERE u.city_id=1",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Алгоритм JOIN сам по себе не ошибка.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap15_left",
+    "primary_rule": "AP15",
+    "category": "valid_construct",
+    "sql": "SELECT u.id,o.id FROM querylens_lab.users u LEFT JOIN querylens_lab.orders o ON o.user_id=u.id AND o.total>0",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "ON и WHERE при LEFT JOIN не взаимозаменяемы.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap15_expression",
+    "primary_rule": "AP15",
+    "category": "complex",
+    "sql": "SELECT u.id,o.id FROM querylens_lab.users u JOIN querylens_lab.orders o ON lower(o.external_code)=lower(u.email)",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Выражение в ON не считается AP02 в WHERE.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap15_three",
+    "primary_rule": "AP15",
+    "category": "complex",
+    "sql": "SELECT u.id,o.id,p.id FROM querylens_lab.users u JOIN querylens_lab.orders o ON o.user_id=u.id JOIN querylens_lab.products p ON p.id=o.product_id WHERE p.category_id=1",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Несколько связей и фильтров.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "mixed_many",
+    "primary_rule": "AP15",
+    "category": "complex",
+    "sql": "WITH x AS MATERIALIZED (SELECT * FROM querylens_lab.orders) SELECT DISTINCT u.id,count(*) OVER () FROM querylens_lab.users u JOIN x o ON o.user_id=u.id WHERE lower(u.email) LIKE '%example%' OR u.city_id=1 ORDER BY u.id LIMIT 10 OFFSET 20",
+    "expected_candidates": [
+      "AP01",
+      "AP02",
+      "AP03",
+      "AP04",
+      "AP06",
+      "AP07",
+      "AP08",
+      "AP13",
+      "AP14",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Много ветвей одновременно, оконный COUNT не AP11.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "mixed_union",
+    "primary_rule": "AP03",
+    "category": "complex",
+    "sql": "SELECT id FROM querylens_lab.users WHERE lower(email) LIKE '%example%' UNION ALL SELECT id FROM querylens_lab.users WHERE id=1",
+    "expected_candidates": [
+      "AP02",
+      "AP03"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Несколько SELECT требуют разных областей.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "literal_comment",
+    "primary_rule": "AP01",
+    "category": "good",
+    "sql": "SELECT 'SELECT * LIKE %phone% OFFSET 100' AS note /* OR lower(email) */",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Текст и комментарии не являются конструкциями.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "projection_like",
+    "primary_rule": "AP03",
+    "category": "good",
+    "sql": "SELECT name LIKE '%phone%' AS matches FROM querylens_lab.products",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "LIKE в проекции не фильтрует доступ.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "parameter_like",
+    "primary_rule": "AP03",
+    "category": "insufficient",
+    "sql": "SELECT id FROM querylens_lab.products WHERE name LIKE $1",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": false,
+    "semantic_note": "Шаблон неизвестен; AP03 insufficient_data.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "parameter_offset",
+    "primary_rule": "AP08",
+    "category": "insufficient",
+    "sql": "SELECT id FROM querylens_lab.orders LIMIT 10 OFFSET $1",
+    "expected_candidates": [
+      "AP08"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": false,
+    "semantic_note": "Параметр смещения неизвестен.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap02_expression_index",
+    "primary_rule": "AP02",
+    "category": "valid_construct",
+    "sql": "SELECT id FROM querylens_lab.products WHERE lower(name)='product 42'",
+    "expected_candidates": [
+      "AP02"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Индекс на выражении существует; план проверяется без принуждения.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "ap03_trigram_selective",
+    "primary_rule": "AP03",
+    "category": "valid_construct",
+    "sql": "SELECT id FROM querylens_lab.products WHERE name LIKE '%model 100%'",
+    "expected_candidates": [
+      "AP03"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Селективный шаблон; при --with-trigram проверяется доступ через pg_trgm.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "portable_quoted_join",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\" FROM \"QL Tenant A\".\"Records\" a JOIN \"QL Tenant B\".\"Records\" b ON b.\"Key\"=a.\"Key\" WHERE lower(a.\"Label\") LIKE '%label%'",
+    "expected_candidates": [
+      "AP02",
+      "AP03",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "portable_self_join",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\" FROM \"QL Tenant A\".\"Records\" a JOIN \"QL Tenant A\".\"Records\" b ON b.\"Key\"=a.\"Key\" WHERE lower(b.\"Label\") LIKE '%label%'",
+    "expected_candidates": [
+      "AP02",
+      "AP03",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "portable_cyrillic_join",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\" FROM \"QL Tenant A\".\"Records\" a JOIN \"QL Tenant B\".\"Связи\" b ON b.\"Источник\"=a.\"Key\" WHERE lower(b.\"Описание\") LIKE '%note%'",
+    "expected_candidates": [
+      "AP02",
+      "AP03",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "portable_search_path",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\" FROM \"Records\" a JOIN \"QL Tenant B\".\"Records\" b ON b.\"Key\"=a.\"Key\" WHERE lower(a.\"Label\") LIKE '%label%'",
+    "expected_candidates": [
+      "AP02",
+      "AP03",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok",
+    "search_path": "\"QL Tenant A\", \"QL Tenant B\", public"
+  },
+  {
+    "case_id": "portable_cartesian",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\",b.\"Key\" FROM \"QL Tenant A\".\"Records\" a CROSS JOIN \"QL Tenant B\".\"Records\" b",
+    "expected_candidates": [
+      "AP12",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "portable_comma_link",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\" FROM \"QL Tenant A\".\"Records\" a,\"QL Tenant B\".\"Records\" b WHERE a.\"Key\"=b.\"Key\"",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "portable_outer_join",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\" FROM \"QL Tenant A\".\"Records\" a LEFT JOIN \"QL Tenant B\".\"Records\" b ON b.\"Key\"=a.\"Key\" WHERE lower(a.\"Label\")='label 1'",
+    "expected_candidates": [
+      "AP02",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "portable_using",
+    "primary_rule": "AP12",
+    "category": "complex",
+    "sql": "SELECT a.\"Key\" FROM \"QL Tenant A\".\"Records\" a JOIN \"QL Tenant B\".\"Records\" b USING (\"Key\")",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Независимость анализа от имён и схем PostgreSQL.",
+    "expected_metadata_status": "ok"
+  },
+  {
+    "case_id": "volume_star_required",
+    "primary_rule": "AP01",
+    "category": "good",
+    "sql": "SELECT * FROM querylens_lab.users",
+    "expected_candidates": [
+      "AP01"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP01": [
+        "all_columns_required"
+      ]
+    },
+    "consumer_context": {
+      "all_output_columns_required": true
+    }
+  },
+  {
+    "case_id": "volume_star_subset",
+    "primary_rule": "AP01",
+    "category": "edge",
+    "sql": "SELECT * FROM querylens_lab.users",
+    "expected_candidates": [
+      "AP01"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP01": [
+        "potential_excess_output"
+      ]
+    },
+    "consumer_context": {
+      "required_columns": [
+        "id",
+        "email"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_star_using",
+    "primary_rule": "AP01",
+    "category": "edge",
+    "sql": "SELECT * FROM querylens_lab.users u JOIN querylens_lab.orders o USING(id)",
+    "expected_candidates": [
+      "AP01",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP01": [
+        "consumer_requirements_unknown"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_star_quoted",
+    "primary_rule": "AP01",
+    "category": "edge",
+    "sql": "SELECT a.* FROM \"QL Tenant A\".\"Records\" a",
+    "expected_candidates": [
+      "AP01"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP01": [
+        "consumer_requirements_unknown"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_offset_zero_limit",
+    "primary_rule": "AP08",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.orders LIMIT 0 OFFSET 1000000",
+    "expected_candidates": [
+      "AP08"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP08": [
+        "no_input_required_for_limit_zero"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_offset_unknown_limit",
+    "primary_rule": "AP08",
+    "category": "edge",
+    "sql": "SELECT id FROM querylens_lab.orders LIMIT $1 OFFSET 20",
+    "expected_candidates": [
+      "AP08"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": false,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP08": [
+        "offset_work_present"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_offset_alias",
+    "primary_rule": "AP08",
+    "category": "edge",
+    "sql": "SELECT user_id AS id FROM querylens_lab.orders ORDER BY id LIMIT 10 OFFSET 5",
+    "expected_candidates": [
+      "AP07",
+      "AP08"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP08": [
+        "offset_work_present"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_count_boolean",
+    "primary_rule": "AP11",
+    "category": "edge",
+    "sql": "SELECT count(*)>0 AS present FROM querylens_lab.orders WHERE user_id=1",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "boolean_existence_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_count_absent",
+    "primary_rule": "AP11",
+    "category": "edge",
+    "sql": "SELECT count(*)>0 FROM querylens_lab.orders WHERE user_id=999999",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "boolean_existence_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_count_negative",
+    "primary_rule": "AP11",
+    "category": "edge",
+    "sql": "SELECT count(*)=0 AS absent FROM querylens_lab.orders WHERE user_id=999999",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "boolean_existence_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_count_exact",
+    "primary_rule": "AP11",
+    "category": "good",
+    "sql": "SELECT count(*) FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "exact_count_required"
+      ]
+    },
+    "consumer_context": {
+      "count_usage": "exact_count"
+    }
+  },
+  {
+    "case_id": "volume_count_numeric_contract",
+    "primary_rule": "AP11",
+    "category": "edge",
+    "sql": "SELECT count(*) FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "consumer_contract_change_required"
+      ]
+    },
+    "consumer_context": {
+      "count_usage": "existence_only"
+    }
+  },
+  {
+    "case_id": "volume_count_threshold",
+    "primary_rule": "AP11",
+    "category": "good",
+    "sql": "SELECT count(*)>10 FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "quantity_threshold_required"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_count_random",
+    "primary_rule": "AP11",
+    "category": "edge",
+    "sql": "SELECT count(*)>0 FROM querylens_lab.orders WHERE random()>0.5",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "existence_rewrite_requires_more_semantics"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_count_limit",
+    "primary_rule": "AP11",
+    "category": "good",
+    "sql": "SELECT count(*)>0 FROM querylens_lab.orders LIMIT 0",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "aggregate_semantics_requires_review"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_count_nested",
+    "primary_rule": "AP11",
+    "category": "edge",
+    "sql": "SELECT (SELECT count(*) FROM querylens_lab.orders)>0",
+    "expected_candidates": [
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль объёма, назначения результата и безопасного воздержания.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP11": [
+        "nested_count_requires_plan_mapping"
+      ]
+    }
+  },
+  {
+    "case_id": "volume_offset_union",
+    "primary_rule": "AP08",
+    "category": "complex",
+    "sql": "SELECT id FROM querylens_lab.users UNION ALL SELECT id FROM querylens_lab.users ORDER BY id LIMIT 5 OFFSET 10",
+    "expected_candidates": [
+      "AP07",
+      "AP08"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "OFFSET над UNION остаётся явным unknown, без привязки чужих показателей.",
+    "expected_metadata_status": "ok",
+    "expected_volume": {
+      "AP08": [
+        "insufficient_data"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_or_bitmap",
+    "primary_rule": "AP04",
+    "category": "edge",
+    "sql": "SELECT id FROM querylens_lab.products WHERE id=1 OR lower(name)='product 42'",
+    "expected_candidates": [
+      "AP02",
+      "AP04"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP04": [
+        "bitmap_or_group_observed",
+        "or_group_filter_observed",
+        "or_group_plan_mapping_unknown"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_or_overlap",
+    "primary_rule": "AP04",
+    "category": "edge",
+    "sql": "SELECT key FROM querylens_lab.probe_nn WHERE key>=1 OR key<=2",
+    "expected_candidates": [
+      "AP04"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP04": [
+        "or_group_filter_observed",
+        "or_group_plan_mapping_unknown"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_or_in",
+    "primary_rule": "AP04",
+    "category": "edge",
+    "sql": "SELECT key FROM querylens_lab.probe_nn WHERE key=1 OR key=2",
+    "expected_candidates": [
+      "AP04"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP04": [
+        "or_group_filter_observed",
+        "or_group_plan_mapping_unknown"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_or_projection",
+    "primary_rule": "AP04",
+    "category": "edge",
+    "sql": "SELECT key=1 OR key=2 AS value FROM querylens_lab.probe_nn",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP04": []
+    }
+  },
+  {
+    "case_id": "predicate_notin_nn",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT key FROM querylens_lab.probe_nn WHERE key NOT IN (SELECT key FROM querylens_lab.deny_nn)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "not_exists_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_same_alias",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT d.key FROM querylens_lab.probe_nn d WHERE d.key NOT IN (SELECT d.key FROM querylens_lab.deny_nn d)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "not_exists_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_nullable",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT p.key FROM querylens_lab.probe_nullable p WHERE p.key NOT IN (SELECT key FROM querylens_lab.deny_nullable)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "null_semantics_requires_review"
+      ]
+    },
+    "naive_rewrite_sql": "SELECT p.key FROM querylens_lab.probe_nullable p WHERE NOT EXISTS (SELECT 1 FROM querylens_lab.deny_nullable d WHERE d.key=p.key)"
+  },
+  {
+    "case_id": "predicate_notin_empty",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT p.key FROM querylens_lab.probe_nullable p WHERE p.key NOT IN (SELECT key FROM querylens_lab.deny_nn WHERE FALSE)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "null_semantics_requires_review"
+      ]
+    },
+    "naive_rewrite_sql": "SELECT p.key FROM querylens_lab.probe_nullable p WHERE p.key IS NOT NULL AND NOT EXISTS (SELECT 1 FROM querylens_lab.deny_nn d WHERE FALSE AND d.key=p.key)"
+  },
+  {
+    "case_id": "predicate_notin_filter_null",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT key FROM querylens_lab.probe_nn WHERE key NOT IN (SELECT key FROM querylens_lab.deny_nullable WHERE key IS NOT NULL)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "not_exists_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_outer_filter",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT p.key FROM querylens_lab.probe_nullable p WHERE p.key IS NOT NULL AND p.key NOT IN (SELECT key FROM querylens_lab.deny_nn)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "not_exists_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_limit",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT key FROM querylens_lab.probe_nn WHERE key NOT IN (SELECT key FROM querylens_lab.deny_nn LIMIT 1)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "nonnull_keys_established"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_correlated",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT p.key FROM querylens_lab.probe_nn p WHERE p.key NOT IN (SELECT d.key FROM querylens_lab.deny_nn d WHERE d.key=p.key)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "nonnull_keys_established"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_null_literal",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT key FROM querylens_lab.probe_nn WHERE key NOT IN (SELECT NULL::integer)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "null_semantics_requires_review"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_tuple",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT key FROM querylens_lab.probe_nn WHERE (key,label) NOT IN (SELECT key,label FROM querylens_lab.probe_nullable)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "insufficient_data"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_or_quoted",
+    "primary_rule": "AP04",
+    "category": "edge",
+    "sql": "SELECT \"Key\" FROM \"QL Tenant A\".\"Records\" WHERE \"Key\"=1 OR \"Key\"=2",
+    "expected_candidates": [
+      "AP04"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP04": [
+        "or_group_filter_observed",
+        "or_group_plan_mapping_unknown"
+      ]
+    }
+  },
+  {
+    "case_id": "predicate_notin_quoted",
+    "primary_rule": "AP05",
+    "category": "edge",
+    "sql": "SELECT a.\"Key\" FROM \"QL Tenant A\".\"Records\" a WHERE a.\"Key\" NOT IN (SELECT b.\"Key\" FROM \"QL Tenant B\".\"Records\" b)",
+    "expected_candidates": [
+      "AP05"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Контроль OR/NOT IN, NULL, дубликатов и границ сопоставления.",
+    "expected_metadata_status": "ok",
+    "expected_predicate_status": {
+      "AP05": [
+        "not_exists_candidate"
+      ]
+    }
+  },
+  {
+    "case_id": "op_distinct_pk",
+    "primary_rule": "AP06",
+    "category": "good",
+    "sql": "SELECT DISTINCT id,email FROM querylens_lab.users",
+    "expected_candidates": [
+      "AP06"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Первичный ключ одной физической таблицы сохраняет уникальность.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP06": [
+        "projection_unique_by_primary_key"
+      ]
+    }
+  },
+  {
+    "case_id": "op_distinct_required",
+    "primary_rule": "AP06",
+    "category": "valid_construct",
+    "sql": "SELECT DISTINCT city_id FROM querylens_lab.users",
+    "expected_candidates": [
+      "AP06"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Повторы городов должны устраняться; удаления нет.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP06": [
+        "dedup_plan_observed",
+        "dedup_node_not_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_distinct_join",
+    "primary_rule": "AP06",
+    "category": "complex",
+    "sql": "SELECT DISTINCT u.id FROM querylens_lab.users u JOIN querylens_lab.orders o ON o.user_id=u.id",
+    "expected_candidates": [
+      "AP06",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Ключ пользователя не доказывает уникальность после JOIN.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP06": [
+        "dedup_plan_observed",
+        "dedup_node_not_observed"
+      ],
+      "AP15": [
+        "join_plan_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_distinct_on",
+    "primary_rule": "AP06",
+    "category": "complex",
+    "sql": "SELECT DISTINCT ON (user_id) user_id,id FROM querylens_lab.orders ORDER BY user_id,id DESC",
+    "expected_candidates": [
+      "AP06",
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "DISTINCT ON требует сохранения выбора строки.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP06": [
+        "distinct_on_requires_order_semantics"
+      ]
+    }
+  },
+  {
+    "case_id": "op_distinct_inheritance",
+    "primary_rule": "AP06",
+    "category": "edge",
+    "sql": "SELECT DISTINCT id FROM querylens_lab.inherited_parent",
+    "expected_candidates": [
+      "AP06"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Наследование может дать два одинаковых первичных ключа.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP06": [
+        "dedup_plan_observed",
+        "dedup_node_not_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_distinct_quoted",
+    "primary_rule": "AP06",
+    "category": "good",
+    "sql": "SELECT DISTINCT \"Key\" FROM \"QL Tenant A\".\"Records\"",
+    "expected_candidates": [
+      "AP06"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Каталог другой схемы и регистр имён.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP06": [
+        "projection_unique_by_primary_key"
+      ]
+    }
+  },
+  {
+    "case_id": "op_sort_full",
+    "primary_rule": "AP07",
+    "category": "potential",
+    "sql": "SELECT id,external_code FROM querylens_lab.orders ORDER BY external_code,id",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Вход сортировки берётся из дочернего узла.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP07": [
+        "sort_input_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_sort_limit",
+    "primary_rule": "AP07",
+    "category": "complex",
+    "sql": "SELECT id FROM querylens_lab.orders ORDER BY total,id LIMIT 3",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Малый LIMIT не означает малый вход сортировки.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP07": [
+        "sort_input_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_sort_index",
+    "primary_rule": "AP07",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.orders ORDER BY created_at DESC,id DESC LIMIT 3",
+    "expected_candidates": [
+      "AP07"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Планировщик может получить порядок из индекса.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP07": [
+        "no_explicit_sort",
+        "sort_input_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_having_early",
+    "primary_rule": "AP09",
+    "category": "valid_construct",
+    "sql": "SELECT user_id,count(*) FROM querylens_lab.orders GROUP BY user_id HAVING user_id=42",
+    "expected_candidates": [
+      "AP09",
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Проверяем ранний отбор уже в текущем плане.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP09": [
+        "having_predicates_checked"
+      ]
+    }
+  },
+  {
+    "case_id": "op_having_aggregate",
+    "primary_rule": "AP09",
+    "category": "good",
+    "sql": "SELECT user_id,count(*) FROM querylens_lab.orders GROUP BY user_id HAVING count(*)>5",
+    "expected_candidates": [
+      "AP09",
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Условие агрегата не переносится в WHERE.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP09": [
+        "having_predicates_checked"
+      ]
+    }
+  },
+  {
+    "case_id": "op_having_mixed",
+    "primary_rule": "AP09",
+    "category": "complex",
+    "sql": "SELECT user_id,count(*) FROM querylens_lab.orders GROUP BY user_id HAVING user_id=42 AND count(*)>2",
+    "expected_candidates": [
+      "AP09",
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Каждое условие AND проверяется отдельно.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP09": [
+        "having_predicates_checked"
+      ]
+    }
+  },
+  {
+    "case_id": "op_having_rollup",
+    "primary_rule": "AP09",
+    "category": "edge",
+    "sql": "SELECT user_id,count(*) FROM querylens_lab.orders GROUP BY ROLLUP(user_id) HAVING user_id=42",
+    "expected_candidates": [
+      "AP09",
+      "AP11"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Группирующие наборы не получают простое правило переноса.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP09": [
+        "having_predicates_checked"
+      ]
+    }
+  },
+  {
+    "case_id": "op_cte_materialized",
+    "primary_rule": "AP13",
+    "category": "potential",
+    "sql": "WITH recent AS MATERIALIZED (SELECT id,user_id FROM querylens_lab.orders) SELECT id FROM recent WHERE user_id=42",
+    "expected_candidates": [
+      "AP13"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Производитель и фильтр потребителя должны быть разделены.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP13": [
+        "cte_producer_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_cte_inline",
+    "primary_rule": "AP13",
+    "category": "good",
+    "sql": "WITH recent AS NOT MATERIALIZED (SELECT id,user_id FROM querylens_lab.orders) SELECT id FROM recent WHERE user_id=42",
+    "expected_candidates": [
+      "AP13"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Отсутствие узлов CTE не объявляется ошибкой.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP13": [
+        "no_explicit_cte_nodes"
+      ]
+    }
+  },
+  {
+    "case_id": "op_cte_reused",
+    "primary_rule": "AP13",
+    "category": "complex",
+    "sql": "WITH recent AS MATERIALIZED (SELECT id,user_id FROM querylens_lab.orders) SELECT a.id FROM recent a JOIN recent b ON a.id=b.id WHERE a.id<5",
+    "expected_candidates": [
+      "AP13",
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Несколько потребителей, общие фильтры не угадываются.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP13": [
+        "cte_producer_observed"
+      ],
+      "AP15": [
+        "insufficient_data"
+      ]
+    }
+  },
+  {
+    "case_id": "op_window_named",
+    "primary_rule": "AP14",
+    "category": "valid_construct",
+    "sql": "SELECT id,sum(total) OVER w FROM querylens_lab.orders WINDOW w AS (PARTITION BY user_id ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Именованная спецификация хранится отдельно от функции.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP14": [
+        "window_pass_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_window_multiple",
+    "primary_rule": "AP14",
+    "category": "complex",
+    "sql": "SELECT row_number() OVER (ORDER BY id),rank() OVER (ORDER BY total) FROM querylens_lab.orders",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Несовместимые проходы не объединяются по догадке.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP14": [
+        "window_pass_mapping_unknown"
+      ]
+    }
+  },
+  {
+    "case_id": "op_window_rank_filter",
+    "primary_rule": "AP14",
+    "category": "complex",
+    "sql": "SELECT id FROM (SELECT id,row_number() OVER (PARTITION BY user_id ORDER BY id DESC) AS rn FROM querylens_lab.orders) q WHERE rn=1",
+    "expected_candidates": [
+      "AP14"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Вложенному окну не приписываются оценки корня.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP14": [
+        "insufficient_data"
+      ]
+    }
+  },
+  {
+    "case_id": "op_join_left",
+    "primary_rule": "AP15",
+    "category": "valid_construct",
+    "sql": "SELECT u.id,o.id FROM querylens_lab.users u LEFT JOIN querylens_lab.orders o ON o.user_id=u.id WHERE u.id<5",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "LEFT JOIN сохраняет отсутствие совпадений.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP15": [
+        "join_plan_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_join_multiple",
+    "primary_rule": "AP15",
+    "category": "complex",
+    "sql": "SELECT u.id,o.id,p.name FROM querylens_lab.users u JOIN querylens_lab.orders o ON o.user_id=u.id JOIN querylens_lab.products p ON p.id=o.product_id WHERE u.id=1",
+    "expected_candidates": [
+      "AP15"
+    ],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Физические узлы нескольких JOIN наблюдаются на уровне запроса.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP15": [
+        "join_plan_observed"
+      ]
+    }
+  },
+  {
+    "case_id": "op_good_explicit",
+    "primary_rule": "AP15",
+    "category": "good",
+    "sql": "SELECT id FROM querylens_lab.users WHERE id=42",
+    "expected_candidates": [],
+    "expected_slowdown_confirmed": false,
+    "server_executable": true,
+    "semantic_note": "Хороший простой запрос без перечисленных операций.",
+    "expected_metadata_status": "ok",
+    "expected_operation_status": {
+      "AP15": [],
+      "AP06": [],
+      "AP07": []
+    }
+  }
+]

@@ -5,13 +5,14 @@ from PySide6 import QtGui, QtWidgets
 from app.controllers.workspace_controller import WorkspaceController
 from app.ui.main_window import MainWindow
 
-
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     app.setOrganizationName("QueryLens")
     app.setApplicationName("QueryLens")
     app.setStyle("Fusion")
-    app.setFont(QtGui.QFont("Segoe UI", 10))
+    interface_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.GeneralFont)
+    interface_font.setPointSize(10)
+    app.setFont(interface_font)
 
     controller = WorkspaceController()
     widget = MainWindow(controller=controller)

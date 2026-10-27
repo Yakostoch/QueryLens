@@ -2,7 +2,7 @@ from app.database.connection import connect_postgresql
 
 
 class DatabaseService:
-    """Database operations independent of Qt and the interface."""
+    """Операции с базой данных без зависимости от интерфейса."""
 
     @staticmethod
     def normalize_parameters(parameters):

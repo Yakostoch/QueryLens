@@ -1,4 +1,5 @@
 """Представление мониторинга: графики и ограниченный журнал, без измерений ОС."""
+
 from collections import deque
 from datetime import datetime
 
@@ -38,8 +39,11 @@ class LiveChart(QtWidgets.QWidget):
             painter.setPen(grid)
             painter.drawLine(QtCore.QPointF(bounds.left(), y), QtCore.QPointF(bounds.right(), y))
             painter.setPen(text)
-            painter.drawText(QtCore.QRectF(0, y - 9, 38, 18), QtCore.Qt.AlignmentFlag.AlignRight,
-                             f"{ceiling * fraction:.0f}" if ceiling >= 10 else f"{ceiling * fraction:.1f}")
+            painter.drawText(
+                QtCore.QRectF(0, y - 9, 38, 18),
+                QtCore.Qt.AlignmentFlag.AlignRight,
+                f"{ceiling * fraction:.0f}" if ceiling >= 10 else f"{ceiling * fraction:.1f}",
+            )
         if not self.points:
             painter.setPen(text)
             painter.drawText(bounds, QtCore.Qt.AlignmentFlag.AlignCenter, "Ожидание измерений")
@@ -47,10 +51,16 @@ class LiveChart(QtWidgets.QWidget):
         start, end = self.points[0][0], self.points[-1][0]
         span = max(1, end - start)
         painter.setPen(text)
-        painter.drawText(QtCore.QRectF(bounds.left(), bounds.bottom() + 5, bounds.width(), 20),
-                         QtCore.Qt.AlignmentFlag.AlignLeft, f"−{end - start:.0f} с")
-        painter.drawText(QtCore.QRectF(bounds.left(), bounds.bottom() + 5, bounds.width(), 20),
-                         QtCore.Qt.AlignmentFlag.AlignRight, "сейчас")
+        painter.drawText(
+            QtCore.QRectF(bounds.left(), bounds.bottom() + 5, bounds.width(), 20),
+            QtCore.Qt.AlignmentFlag.AlignLeft,
+            f"−{end - start:.0f} с",
+        )
+        painter.drawText(
+            QtCore.QRectF(bounds.left(), bounds.bottom() + 5, bounds.width(), 20),
+            QtCore.Qt.AlignmentFlag.AlignRight,
+            "сейчас",
+        )
         painter.save()
         painter.setClipRect(bounds.adjusted(-2, -2, 2, 2))
         for index, color in enumerate(self.colors):
@@ -62,8 +72,10 @@ class LiveChart(QtWidgets.QWidget):
                 if value is None:
                     connected = False
                     continue
-                point = QtCore.QPointF(bounds.left() + (elapsed - start) / span * bounds.width(),
-                                      bounds.bottom() - min(ceiling, max(0, value)) / ceiling * bounds.height())
+                point = QtCore.QPointF(
+                    bounds.left() + (elapsed - start) / span * bounds.width(),
+                    bounds.bottom() - min(ceiling, max(0, value)) / ceiling * bounds.height(),
+                )
                 if connected:
                     path.lineTo(point)
                 else:
@@ -85,7 +97,9 @@ class ResourcePanel(QtWidgets.QWidget):
         title = QtWidgets.QLabel("Мониторинг ресурсов")
         title.setObjectName("brand")
         layout.addWidget(title)
-        caption = QtWidgets.QLabel("Этот компьютер · Работает без подключения к БД · Последние 120 измерений")
+        caption = QtWidgets.QLabel(
+            "Этот компьютер · Работает без подключения к БД · Последние 120 измерений"
+        )
         caption.setObjectName("muted")
         caption.setWordWrap(True)
         layout.addWidget(caption)
@@ -152,10 +166,17 @@ class ResourcePanel(QtWidgets.QWidget):
             chart = LiveChart(colors, unit, ceiling)
             body.addWidget(chart)
             if key == "disk":
-                legend = QtWidgets.QLabel('<span style="color:#4b8cff">● Чтение</span> &nbsp; '
-                                         '<span style="color:#e69b27">● Запись</span> · MiB/с')
+                legend = QtWidgets.QLabel(
+                    '<span style="color:#4b8cff">● Чтение</span> &nbsp; '
+                    '<span style="color:#e69b27">● Запись</span> · MiB/с'
+                )
                 body.addWidget(legend)
-            self.cards[key], self.values[key], self.details[key], self.charts[key] = card, value, detail, chart
+            self.cards[key], self.values[key], self.details[key], self.charts[key] = (
+                card,
+                value,
+                detail,
+                chart,
+            )
             charts.addWidget(card, 1)
         layout.addWidget(self.charts_widget)
         self.charts_widget.hide()
@@ -167,7 +188,9 @@ class ResourcePanel(QtWidgets.QWidget):
         self.console.setAccessibleName("Консоль мониторинга ресурсов")
         self.console.setMinimumHeight(150)
         self.console.document().setMaximumBlockCount(500)
-        self.console.setPlaceholderText("Измерения появятся после запуска. Журнал хранится только в памяти.")
+        self.console.setPlaceholderText(
+            "Измерения появятся после запуска. Журнал хранится только в памяти."
+        )
         layout.addWidget(self.console, 1)
 
     def selected_options(self):
@@ -198,7 +221,9 @@ class ResourcePanel(QtWidgets.QWidget):
         if busy:
             self._failed = False
             self.clear()
-            self.status.setText("● Мониторинг работает · Первое измерение появится через выбранный интервал")
+            self.status.setText(
+                "● Мониторинг работает · Первое измерение появится через выбранный интервал"
+            )
         elif not self._failed:
             self.status.setText("Мониторинг остановлен · Последние данные сохранены на экране")
 
@@ -222,7 +247,9 @@ class ResourcePanel(QtWidgets.QWidget):
             cores = sample["cpu_percent_per_core"]
             value = sum(cores) / len(cores) if cores else None
             self.values["cpu"].setText(f"{value:.1f}%" if value is not None else "—")
-            self.details["cpu"].setText(f"Средняя загрузка · {report['logical_cores']} логических ядер")
+            self.details["cpu"].setText(
+                f"Средняя загрузка · {report['logical_cores']} логических ядер"
+            )
             self.charts["cpu"].append(self.elapsed, (value,))
             parts.append(f"CPU {self.values['cpu'].text()}")
         if options.get("ram"):
@@ -230,7 +257,8 @@ class ResourcePanel(QtWidgets.QWidget):
             self.values["ram"].setText(f"{value:.1f}%" if value is not None else "—")
             self.details["ram"].setText(
                 f"Доступно {sample['ram_available_bytes'] / 2**30:.1f} из {report['ram_total_bytes'] / 2**30:.1f} GiB"
-                f" · Swap {sample['swap_used_bytes'] / 2**30:.1f} GiB")
+                f" · Swap {sample['swap_used_bytes'] / 2**30:.1f} GiB"
+            )
             self.charts["ram"].append(self.elapsed, (value,))
             parts.append(f"RAM {self.values['ram'].text()}")
         if options.get("disk"):
@@ -238,11 +266,16 @@ class ResourcePanel(QtWidgets.QWidget):
             totals = []
             for field in ("read_bytes_per_second", "write_bytes_per_second"):
                 values = [row.get(field) for row in (rates or {}).values()]
-                totals.append(sum(values) / 2**20 if values and all(v is not None for v in values) else None)
+                totals.append(
+                    sum(values) / 2**20 if values and all(v is not None for v in values) else None
+                )
             read, write = (f"{v:.2f}" if v is not None else "—" for v in totals)
             self.values["disk"].setText(f"↓ {read}   ↑ {write}")
-            self.details["disk"].setText("Сумма счётчиков устройств · MiB/с" if all(v is not None for v in totals)
-                                         else "Счётчики недоступны или изменились")
+            self.details["disk"].setText(
+                "Сумма счётчиков устройств · MiB/с"
+                if all(v is not None for v in totals)
+                else "Счётчики недоступны или изменились"
+            )
             self.charts["disk"].append(self.elapsed, totals)
             parts.append(f"Диск: чтение {read}, запись {write} MiB/с")
         self.console.appendPlainText("  |  ".join(parts))

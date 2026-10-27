@@ -1,1 +1,1 @@
-"""Background tasks; no widget dependencies."""
+"""Фоновые задачи приложения."""

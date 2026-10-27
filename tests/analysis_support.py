@@ -1,7 +1,7 @@
 import time
 from unittest.mock import MagicMock
 
-from PySide6 import QtWidgets, QtTest
+from PySide6 import QtTest, QtWidgets
 
 
 def connect_fake_database(controller):
@@ -11,8 +11,16 @@ def connect_fake_database(controller):
         "QUERY PLAN": [{"Plan": {"Node Type": "Result"}}]
     }
     controller.connection.service.connect = MagicMock(return_value=connection)
-    controller.connect_database(dict(host="localhost", port=5432, database="demo",
-                                     user="reader", password="secret", sslmode="prefer"))
+    controller.connect_database(
+        dict(
+            host="localhost",
+            port=5432,
+            database="demo",
+            user="reader",
+            password="secret",
+            sslmode="prefer",
+        )
+    )
     return connection
 
 

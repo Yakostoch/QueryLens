@@ -17,9 +17,13 @@ class DatabaseOptionsDialog(QtWidgets.QDialog):
         title.setObjectName("brand")
         layout.addWidget(title)
         self.config_option = self.add_option(
-            layout, "Конфигурация PostgreSQL", "Параметры сервера и пояснения к настройкам.")
+            layout, "Конфигурация PostgreSQL", "Параметры сервера и пояснения к настройкам."
+        )
         self.metadata_option = self.add_option(
-            layout, "Структура и статистика БД", "Таблицы, индексы, размер базы и накопленная статистика.")
+            layout,
+            "Структура и статистика БД",
+            "Таблицы, индексы, размер базы и накопленная статистика.",
+        )
         scope_row = QtWidgets.QHBoxLayout()
         scope_row.addWidget(QtWidgets.QLabel("Область структуры:"))
         self.metadata_scope = QtWidgets.QComboBox()

@@ -28,8 +28,10 @@ class SettingsDialog(QtWidgets.QDialog):
         form.addRow("Размер шрифта SQL", self.font_size)
         form.addRow(self.history)
         layout.addLayout(form)
-        hint = QtWidgets.QLabel("История хранится локально на этом компьютере.\n"
-                               "Отключение записи сохраняет прежние записи.")
+        hint = QtWidgets.QLabel(
+            "История хранится локально на этом компьютере.\n"
+            "Отключение записи сохраняет прежние записи."
+        )
         hint.setObjectName("muted")
         hint.setWordWrap(True)
         layout.addWidget(hint)

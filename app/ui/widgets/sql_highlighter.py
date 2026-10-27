@@ -2,8 +2,8 @@ import re
 
 from PySide6 import QtGui
 
-
-KEYWORDS = set("""
+KEYWORDS = set(
+    """
 SELECT FROM WHERE AS DISTINCT ALL JOIN INNER LEFT RIGHT FULL OUTER CROSS ON
 GROUP BY HAVING ORDER ASC DESC LIMIT OFFSET FETCH FIRST NEXT ROWS ONLY
 INSERT INTO VALUES UPDATE SET DELETE CREATE ALTER DROP TABLE VIEW INDEX
@@ -13,29 +13,43 @@ UNION INTERSECT EXCEPT WITH RECURSIVE OVER PARTITION WINDOW RETURNING
 BEGIN COMMIT ROLLBACK TRANSACTION TRUNCATE EXPLAIN ANALYZE TRUE FALSE
 INT INTEGER BIGINT SMALLINT DECIMAL NUMERIC FLOAT DOUBLE REAL BOOLEAN
 CHAR VARCHAR TEXT DATE TIME TIMESTAMP INTERVAL JSON JSONB UUID CAST
-""".split())
+""".split()
+)
 
 SYNTAX_COLORS = {
-    "dark": dict(keyword="#c4a7ff", string="#a4d69c", number="#f2bd83",
-                 comment="#8496ad", function="#82cfff", identifier="#e6ce94",
-                 operator="#a4b8d9"),
-    "light": dict(keyword="#7040b0", string="#28733e", number="#a45316",
-                  comment="#627189", function="#086d9b", identifier="#846019",
-                  operator="#425c83"),
+    "dark": dict(
+        keyword="#c4a7ff",
+        string="#a4d69c",
+        number="#f2bd83",
+        comment="#8496ad",
+        function="#82cfff",
+        identifier="#e6ce94",
+        operator="#a4b8d9",
+    ),
+    "light": dict(
+        keyword="#7040b0",
+        string="#28733e",
+        number="#a45316",
+        comment="#627189",
+        function="#086d9b",
+        identifier="#846019",
+        operator="#425c83",
+    ),
 }
 
-# Quotes and comments are consumed as a whole before any tokens inside them.
+# Строки и комментарии обрабатываем целиком до разбора внутренних символов.
 TOKEN = re.compile(
     r"--|/\*|['\"`\[]|"
     r"(?:\b\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?\b|"
-    r"[^\W\d][\w$]*|[+*/%=<>!|&^~:-]", re.UNICODE
+    r"[^\W\d][\w$]*|[+*/%=<>!|&^~:-]",
+    re.UNICODE,
 )
 QUOTE_STATES = {"'": 2, '"': 3, "`": 4, "]": 5}
 STATE_QUOTES = {state: quote for quote, state in QUOTE_STATES.items()}
 
 
 class SqlHighlighter(QtGui.QSyntaxHighlighter):
-    """Basic SQL highlighting; states preserve multiline comments and quotes."""
+    """Подсветка SQL с поддержкой многострочных строк и комментариев."""
 
     def __init__(self, document):
         super().__init__(document)
@@ -60,12 +74,12 @@ class SqlHighlighter(QtGui.QSyntaxHighlighter):
             if end == -1:
                 return len(text), False
             if end + 1 < len(text) and text[end + 1] == closer:
-                start = end + 2  # SQL escapes a quote by doubling it.
+                start = end + 2  # В SQL кавычка внутри строки записывается дважды.
             else:
                 return end + 1, True
 
     def highlightBlock(self, text):
-        # Qt uses UTF-16 positions; Python counts an emoji as one character.
+        # Qt считает позиции в UTF-16, а Python считает символы.
         offsets = [0]
         for char in text:
             offsets.append(offsets[-1] + (2 if ord(char) > 0xFFFF else 1))

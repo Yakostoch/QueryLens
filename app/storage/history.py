@@ -30,7 +30,8 @@ class HistoryStore:
         # instr ищет буквальный текст: % и _ не превращаются в шаблоны SQL.
         return self.connection.execute(
             "SELECT * FROM queries WHERE instr(lower(sql), lower(?)) > 0 "
-            "ORDER BY id DESC LIMIT 200", (text,),
+            "ORDER BY id DESC LIMIT 200",
+            (text,),
         ).fetchall()
 
     def delete(self, query_id):

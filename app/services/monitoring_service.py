@@ -1,4 +1,5 @@
 """Непрерывный поток измерений ОС; не зависит от Qt и PostgreSQL."""
+
 from app.collectors.system import collect_system
 
 

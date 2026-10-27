@@ -1,14 +1,16 @@
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from app.controllers.workspace_controller import WorkspaceController
-from app.ui.dialog.settings_dialog import SettingsDialog
+from app.services.analysis_presentation import present_report
+from app.services.dataset_service import DatasetError, make_record, parse_report, write_records
 from app.ui.dialog.connection_dialog import ConnectionDialog
+from app.ui.dialog.settings_dialog import SettingsDialog
 from app.ui.theme import apply_theme
-from app.ui.widgets.history_panel import HistoryPanel
-from app.ui.widgets.sql_editor import SqlEditor
 from app.ui.widgets.database_panel import DatabasePanel
-from app.ui.widgets.resource_panel import ResourcePanel
+from app.ui.widgets.history_panel import HistoryPanel
 from app.ui.widgets.icons import make_icon
+from app.ui.widgets.resource_panel import ResourcePanel
+from app.ui.widgets.sql_editor import SqlEditor
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -17,8 +19,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("QueryLens — SQL Workspace")
         self.resize(1320, 800)
         self.setMinimumSize(960, 600)
-        self.controller = controller if controller is not None else WorkspaceController(data_dir, preferences, self)
+        self.controller = (
+            controller
+            if controller is not None
+            else WorkspaceController(data_dir, preferences, self)
+        )
         self._result_sql = None
+        self._analysis_report = None
 
         central = QtWidgets.QWidget()
         self.setCentralWidget(central)
@@ -40,8 +47,9 @@ class MainWindow(QtWidgets.QMainWindow):
         nav_layout.setSpacing(4)
         self.nav_group = QtWidgets.QButtonGroup(self)
         self.nav_buttons = {}
-        for index, (name, icon) in enumerate((("SQL", "sql"), ("Анализ БД", "database"),
-                                               ("Ресурсы", "chart"))):
+        for index, (name, icon) in enumerate(
+            (("SQL", "sql"), ("Анализ БД", "database"), ("Ресурсы", "chart"))
+        ):
             button = QtWidgets.QPushButton(name)
             button.setIcon(make_icon(icon))
             button.setIconSize(QtCore.QSize(20, 20))
@@ -97,9 +105,49 @@ class MainWindow(QtWidgets.QMainWindow):
         self.output = QtWidgets.QPlainTextEdit()
         self.output.setReadOnly(True)
         self.output.setAccessibleName("Результат анализа")
-        self.output.setPlaceholderText("Результаты появятся здесь\n\nВведите запрос слева и нажмите «Анализировать».")
+        self.output.setPlaceholderText(
+            "Результаты появятся здесь\n\nВведите запрос слева и нажмите «Анализировать»."
+        )
+
+        self.result_tabs = QtWidgets.QTabWidget()
+        self.result_tabs.setAccessibleName("Разделы результата анализа")
+        self.result_tabs.setUsesScrollButtons(True)
+        self.detail_output = QtWidgets.QPlainTextEdit()
+        self.json_output = QtWidgets.QPlainTextEdit()
+        self.candidate_output = QtWidgets.QPlainTextEdit()
+        self.result_tabs.addTab(self.output, "Кратко")
+        for widget, label in (
+            (self.detail_output, "Подробности"),
+            (self.json_output, "JSON"),
+            (self.candidate_output, "Вариант SQL"),
+        ):
+            widget.setReadOnly(True)
+            widget.setAccessibleName(label)
+            self.result_tabs.addTab(widget, label)
+        self.result_tabs.setTabVisible(2, False)
+        self.result_tabs.setTabVisible(3, False)
 
         editor_card, editor_layout = self.make_card("SQL-редактор", "Запрос", self.editor)
+        execution_options = QtWidgets.QHBoxLayout()
+        self.measure_checkbox = QtWidgets.QCheckBox("Измерить (ANALYZE)")
+        self.measure_checkbox.setToolTip(
+            "Выполняет SELECT для измерения; обычный EXPLAIN только строит план"
+        )
+        self.timeout_spin = QtWidgets.QSpinBox()
+        self.timeout_spin.setRange(1, 30)
+        self.timeout_spin.setValue(5)
+        self.timeout_spin.setSuffix(" с")
+        self.timeout_spin.setAccessibleName("Лимит времени одного SQL")
+        self.timeout_spin.setEnabled(False)
+        self.measure_checkbox.toggled.connect(self.timeout_spin.setEnabled)
+        self.measure_checkbox.toggled.connect(
+            lambda checked: self.badge.setText("ANALYZE" if checked else "EXPLAIN")
+        )
+        execution_options.addWidget(self.measure_checkbox)
+        execution_options.addStretch()
+        execution_options.addWidget(QtWidgets.QLabel("Лимит SQL:"))
+        execution_options.addWidget(self.timeout_spin)
+        editor_layout.addLayout(execution_options)
         editor_footer = QtWidgets.QHBoxLayout()
         self.position_label = QtWidgets.QLabel()
         self.position_label.setObjectName("muted")
@@ -107,14 +155,30 @@ class MainWindow(QtWidgets.QMainWindow):
         editor_footer.addStretch()
         self.analyze_button = QtWidgets.QPushButton("Анализировать")
         self.analyze_button.setObjectName("primary")
-        self.analyze_button.setToolTip("Ctrl+Enter — анализировать выделение или запрос под курсором")
+        self.analyze_button.setToolTip(
+            "Ctrl+Enter — анализировать выделение или запрос под курсором"
+        )
         self.analyze_button.clicked.connect(self.analyze)
+        self.cancel_analysis_button = QtWidgets.QPushButton("Отменить")
+        self.cancel_analysis_button.setVisible(False)
+        self.cancel_analysis_button.clicked.connect(self.controller.cancel_analysis)
+        editor_footer.addWidget(self.cancel_analysis_button)
         editor_footer.addWidget(self.analyze_button)
         editor_layout.addLayout(editor_footer)
-        output_card, output_layout = self.make_card("Результат анализа", "Вывод", self.output)
-        output_hint = QtWidgets.QLabel("План PostgreSQL · EXPLAIN без ANALYZE")
+        output_card, output_layout = self.make_card("Результат анализа", "Вывод", self.result_tabs)
+        output_hint = QtWidgets.QLabel("Доказательства и полный отчёт — в «Подробностях»")
         output_hint.setObjectName("muted")
-        output_layout.addWidget(output_hint)
+        output_hint.setWordWrap(True)
+        output_footer = QtWidgets.QHBoxLayout()
+        output_footer.addWidget(output_hint, 1)
+        self.export_case_button = QtWidgets.QPushButton("В датасет")
+        self.export_case_button.setEnabled(False)
+        self.export_case_button.setToolTip(
+            "Сохранить SQL, план и контекст в локальный JSONL для ручной разметки"
+        )
+        self.export_case_button.clicked.connect(self.export_dataset_case)
+        output_footer.addWidget(self.export_case_button)
+        output_layout.addLayout(output_footer)
 
         self.splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         self.splitter.setHandleWidth(12)
@@ -181,7 +245,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.editor.setFocus()
 
     def open_connection(self):
-        if self.controller.collection.busy or self.controller.closing or self.controller.analysis_worker is not None:
+        if (
+            self.controller.collection.busy
+            or self.controller.closing
+            or self.controller.analysis_worker is not None
+        ):
             return
         dialog = ConnectionDialog(self)
         dialog.connection_requested.connect(self.controller.connect_database)
@@ -200,6 +268,7 @@ class MainWindow(QtWidgets.QMainWindow):
         dialog.deleteLater()
 
     def show_connected(self, database):
+        self.clear_analysis_result()
         self.connection_label.setText(f"PostgreSQL: {database}")
         self.connection_state.setText("●  Подключено")
         self.connection_state.setProperty("connected", True)
@@ -214,16 +283,22 @@ class MainWindow(QtWidgets.QMainWindow):
     def refresh_collection_button(self):
         config = self.database_panel.config_option.isChecked()
         metadata = self.database_panel.metadata_option.isChecked()
-        self.database_panel.run_button.setEnabled(self.controller.can_collect_database(config, metadata))
+        self.database_panel.run_button.setEnabled(
+            self.controller.can_collect_database(config, metadata)
+        )
 
     def start_collection(self):
-        self.controller.collect_database(self.database_panel.config_option.isChecked(),
-                                         self.database_panel.metadata_option.isChecked(),
-                                         self.database_panel.metadata_scope.currentData(),
-                                         self.editor.sql_for_analysis())
+        self.controller.collect_database(
+            self.database_panel.config_option.isChecked(),
+            self.database_panel.metadata_option.isChecked(),
+            self.database_panel.metadata_scope.currentData(),
+            self.editor.sql_for_analysis(),
+        )
 
     def start_monitoring(self):
-        self.controller.start_monitoring(self.resource_panel.selected_options(), self.resource_panel.interval.currentData())
+        self.controller.start_monitoring(
+            self.resource_panel.selected_options(), self.resource_panel.interval.currentData()
+        )
 
     def stop_monitoring(self):
         self.controller.monitoring.stop()
@@ -239,14 +314,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def cancel_collection(self):
         if self.controller.collection.busy:
             self.controller.collection.cancel()
-            self.database_panel.hint.setText("Отмена… Текущий запрос к каталогам ограничен таймаутом.")
+            self.database_panel.hint.setText(
+                "Отмена… Текущий запрос к каталогам ограничен таймаутом."
+            )
 
     def collection_ready(self, report):
         if self.controller.closing:
             return
         self.database_panel.show_report(report)
-        self.database_panel.hint.setText("Сбор завершён с ошибками отдельных модулей." if report["errors"]
-                                         else "Сбор завершён. Ниже — факты, а не диагноз конкретного SQL.")
+        self.database_panel.hint.setText(
+            "Сбор завершён с ошибками отдельных модулей."
+            if report["errors"]
+            else "Сбор завершён. Ниже — факты, а не диагноз конкретного SQL."
+        )
 
     def show_collection_error(self, error_type):
         self.database_panel.hint.setText(f"Не удалось собрать показатели: {error_type}")
@@ -296,38 +376,120 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_position(self):
         cursor = self.editor.textCursor()
-        self.position_label.setText(f"{self.editor.context_label()} · Стр. {cursor.blockNumber() + 1}")
-        self.position_label.setToolTip(f"Столбец {cursor.positionInBlock() + 1} · Tab — дополнить слово")
+        self.position_label.setText(
+            f"{self.editor.context_label()} · Стр. {cursor.blockNumber() + 1}"
+        )
+        self.position_label.setToolTip(
+            f"Столбец {cursor.positionInBlock() + 1} · Tab — дополнить слово"
+        )
 
     def mark_output_stale(self):
         if self.output.toPlainText() and self.editor.toPlainText() != self._result_sql:
-            self.output.clear()
+            self.clear_analysis_result()
             self.status.setText("Запрос изменён · Запустите анализ заново")
 
     def analyze(self):
         if self.pages.currentIndex() != 0 or self.controller.analysis_worker is not None:
             return
         sql = self.editor.sql_for_analysis()
+        measured = self.measure_checkbox.isChecked()
+        if measured and sql.strip() and self.controller.connection.parameters is not None:
+            answer = QtWidgets.QMessageBox.question(
+                self,
+                "Выполнить SELECT для измерения?",
+                "EXPLAIN ANALYZE выполнит выбранный SELECT и создаст нагрузку. "
+                "Транзакция будет только для чтения, с выбранным лимитом времени. "
+                "Функции могут иметь эффекты вне БД; запускайте известный вам запрос. Продолжить?",
+                QtWidgets.QMessageBox.StandardButton.Yes
+                | QtWidgets.QMessageBox.StandardButton.Cancel,
+                QtWidgets.QMessageBox.StandardButton.Cancel,
+            )
+            if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+                return
         self._result_sql = self.editor.toPlainText()
-        self.controller.analyze(sql, self.editor.context_label())
+        self.controller.analyze(
+            sql,
+            self.editor.context_label(),
+            analyze=measured,
+            timeout_ms=self.timeout_spin.value() * 1000,
+        )
 
     def show_analysis_busy(self, busy):
         self.analyze_button.setEnabled(not busy)
+        self.history_panel.setEnabled(not busy)
         self.analyze_button.setText("Анализ…" if busy else "Анализировать")
         self.connect_button.setEnabled(not busy)
+        self.measure_checkbox.setEnabled(not busy)
+        self.timeout_spin.setEnabled(not busy and self.measure_checkbox.isChecked())
+        self.cancel_analysis_button.setVisible(busy)
         if busy:
-            self.output.clear()
-            self.status.setText("Получаю план PostgreSQL…")
+            self.clear_analysis_result()
+            self.status.setText(
+                "Измеряю выполнение SELECT…"
+                if self.measure_checkbox.isChecked()
+                else "Получаю план PostgreSQL…"
+            )
+
+    def clear_analysis_result(self):
+        self.status.setToolTip("")
+        self._analysis_report = None
+        self.export_case_button.setEnabled(False)
+        for widget in (self.output, self.detail_output, self.json_output, self.candidate_output):
+            widget.clear()
+        self.result_tabs.setCurrentIndex(0)
+        self.result_tabs.setTabVisible(2, False)
+        self.result_tabs.setTabVisible(3, False)
+
+    def display_analysis_result(self, report):
+        self.status.setToolTip("")
+        presentation = present_report(report)
+        self.output.setPlainText(presentation["brief"])
+        self.detail_output.setPlainText(presentation["details"])
+        self.json_output.setPlainText(presentation["raw"])
+        self.candidate_output.setPlainText(presentation["candidates"])
+        self.result_tabs.setTabVisible(2, bool(presentation["raw"]))
+        self.result_tabs.setTabVisible(3, bool(presentation["candidates"]))
+        self.result_tabs.setCurrentIndex(0)
+        self._analysis_report = report if presentation["raw"] else None
+        self.export_case_button.setEnabled(self._analysis_report is not None)
+
+    def export_dataset_case(self):
+        if self._analysis_report is None:
+            return
+        try:
+            record = make_record(parse_report(self._analysis_report))
+        except (DatasetError, ValueError, TypeError):
+            self.status.setText(
+                "Этот отчёт не удалось подготовить для датасета. Выполните анализ заново."
+            )
+            return
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            "Сохранить SQL и план для ручной разметки",
+            "querylens_case.jsonl",
+            "JSONL (*.jsonl)",
+        )
+        if not path:
+            return
+        try:
+            write_records(path, [record], overwrite=True)
+        except (OSError, ValueError, TypeError):
+            self.status.setText("Не удалось сохранить пример. Проверьте путь и доступ к файлу.")
+            return
+        self.status.setText("Пример сохранён для ручной разметки. Для обучения он пока не одобрен.")
 
     def show_analysis_error(self, message):
+        self.clear_analysis_result()
         self.output.setPlainText(message)
+        self.status.setText(message)
+        self.status.setToolTip(message)
         self.editor.setFocus()
 
     def show_analysis(self, sql, result, saved):
         if self.editor.toPlainText() != self._result_sql:
             self.status.setText("Анализ завершён для прежнего текста · Запустите анализ заново")
             return
-        self.output.setPlainText(result)
+        self.display_analysis_result(result)
         if saved:
             if sql.strip() == self.editor.toPlainText().strip():
                 self.editor.document().setModified(False)
@@ -341,9 +503,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.controller.history.search(self.history_panel.search.text())
 
     def restore_query(self, entry):
+        if self.controller.analysis_worker is not None:
+            self.status.setText(
+                "Дождитесь завершения анализа или отмените его перед открытием истории"
+            )
+            return
         if self.editor.document().isModified() and self.editor.toPlainText().strip():
             answer = QtWidgets.QMessageBox.question(
-                self, "Открыть запрос", "Заменить текущий текст запросом из истории?",
+                self,
+                "Открыть запрос",
+                "Заменить текущий текст запросом из истории?",
                 QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No,
                 QtWidgets.QMessageBox.StandardButton.No,
             )
@@ -351,7 +520,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 return
         self.editor.setPlainText(entry["sql"])
         self._result_sql = entry["sql"]
-        self.output.setPlainText(entry["result"])
+        self.display_analysis_result(entry["result"])
         self.editor.document().setModified(False)
         self.status.setText("Открыт запрос из истории · Показан сохранённый результат")
 
@@ -366,12 +535,21 @@ class MainWindow(QtWidgets.QMainWindow):
     def open_settings(self):
         dialog = SettingsDialog(self.controller.settings.values, self)
         if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
-            self.controller.settings.save(dialog.theme.currentData(), dialog.font_size.value(), dialog.history.isChecked())
+            self.controller.settings.save(
+                dialog.theme.currentData(), dialog.font_size.value(), dialog.history.isChecked()
+            )
         dialog.deleteLater()
 
     def save_editor_font_size(self, size):
-        self.output.setFont(self.editor.font())
+        self.update_result_fonts()
         self.controller.settings.set_font_size(size)
+
+    def update_result_fonts(self):
+        brief_font = QtGui.QFont(QtWidgets.QApplication.font())
+        brief_font.setPointSize(self.editor.font().pointSize())
+        self.output.setFont(brief_font)
+        for widget in (self.detail_output, self.json_output, self.candidate_output):
+            widget.setFont(self.editor.font())
 
     def show_settings_error(self, message):
         QtWidgets.QMessageBox.warning(self, "Настройки", message)
@@ -380,7 +558,7 @@ class MainWindow(QtWidgets.QMainWindow):
         values = values if values is not None else self.controller.settings.values
         apply_theme(QtWidgets.QApplication.instance(), values.theme)
         self.editor.set_font_size(values.font_size)
-        self.output.setFont(self.editor.font())
+        self.update_result_fonts()
         self.editor.refresh_theme(values.theme)
 
     def closeEvent(self, event):

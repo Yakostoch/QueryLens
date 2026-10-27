@@ -4,9 +4,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
+from analysis_support import connect_fake_database, wait_analysis
 from PySide6 import QtCore, QtWidgets
 
-from analysis_support import connect_fake_database, wait_analysis
 from app.controllers.workspace_controller import WorkspaceController
 
 
@@ -17,9 +17,13 @@ class AnalysisFlowTests(unittest.TestCase):
 
     def setUp(self):
         from app.storage.preferences import Preferences
+
         self.temp = tempfile.TemporaryDirectory()
-        settings = Preferences(QtCore.QSettings(str(Path(self.temp.name) / "settings.ini"),
-                                               QtCore.QSettings.Format.IniFormat))
+        settings = Preferences(
+            QtCore.QSettings(
+                str(Path(self.temp.name) / "settings.ini"), QtCore.QSettings.Format.IniFormat
+            )
+        )
         self.controller = WorkspaceController(self.temp.name, settings)
 
     def tearDown(self):
@@ -34,7 +38,9 @@ class AnalysisFlowTests(unittest.TestCase):
         self.assertIsNone(self.controller.analysis_worker)
         self.assertIn("подключитесь", failures[-1])
         connection = connect_fake_database(self.controller)
-        connection.cursor.return_value.__enter__.return_value.execute.side_effect = RuntimeError("secret")
+        connection.cursor.return_value.__enter__.return_value.execute.side_effect = RuntimeError(
+            "secret"
+        )
         self.controller.analyze("SELECT 1")
         wait_analysis(self.controller)
         self.assertIn("RuntimeError", failures[-1])
@@ -47,7 +53,7 @@ class AnalysisFlowTests(unittest.TestCase):
         entered, release = threading.Event(), threading.Event()
         threads = []
 
-        def analyze(sql, parameters, context):
+        def analyze(sql, parameters, context, **options):
             threads.append(threading.get_ident())
             entered.set()
             if not release.wait(3):

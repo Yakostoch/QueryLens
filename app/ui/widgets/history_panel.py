@@ -48,13 +48,20 @@ class HistoryPanel(QtWidgets.QFrame):
         for row in entries:
             entry = dict(row)
             preview = " ".join(entry["sql"].split())
-            date = datetime.fromisoformat(entry["created_at"]).astimezone().strftime("%d.%m.%Y · %H:%M")
+            date = (
+                datetime.fromisoformat(entry["created_at"])
+                .astimezone()
+                .strftime("%d.%m.%Y · %H:%M")
+            )
             item = QtWidgets.QListWidgetItem(f"{date}\n{preview[:65]}")
             item.setData(QtCore.Qt.ItemDataRole.UserRole, entry)
             item.setToolTip(entry["sql"][:2000])
             self.items.addItem(item)
-        self.empty.setText("Ничего не найдено." if self.search.text() else
-                           "История пока пуста.\nЗапустите первый анализ.")
+        self.empty.setText(
+            "Ничего не найдено."
+            if self.search.text()
+            else "История пока пуста.\nЗапустите первый анализ."
+        )
         self.empty.setVisible(not entries)
         self.update_actions()
 

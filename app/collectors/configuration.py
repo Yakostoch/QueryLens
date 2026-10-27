@@ -1,5 +1,7 @@
 """Конфигурация диагностической сессии PostgreSQL."""
+
 from app.database.query_executor import QueryExecutor
+
 SETTINGS = {
     "shared_buffers": "Буферный кеш PostgreSQL; сопоставлять с чтениями в плане.",
     "work_mem": "Память отдельной сортировки/хеширования; проверять временный диск.",
@@ -47,5 +49,3 @@ def collect_configuration(connection):
         "settings": rows,
         "settings_unavailable": sorted(set(SETTINGS) - {row["name"] for row in rows}),
     }
-
-

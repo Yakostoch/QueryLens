@@ -1,15 +1,40 @@
 from PySide6 import QtGui
 
-
 COLORS = {
-    "dark": dict(bg="#0b1422", panel="#121e30", field="#0d1726", text="#e0e8ff",
-                 muted="#99b2d9", border="#24364f", accent="#4b8cff", button="#2459ed",
-                 hover="#182e55", selection="#233f73", statement="#b5e875",
-                 success="#15803d", success_hover="#166534", success_text="#86efac", success_bg="#15382b"),
-    "light": dict(bg="#f0f3f9", panel="#ffffff", field="#f8faff", text="#1c2940",
-                  muted="#596b85", border="#d6deeb", accent="#345fc5", button="#345fc5",
-                  hover="#e5edff", selection="#cfdefc", statement="#6b9e19",
-                  success="#15803d", success_hover="#166534", success_text="#166534", success_bg="#dcfce7"),
+    "dark": dict(
+        bg="#0b1422",
+        panel="#121e30",
+        field="#0d1726",
+        text="#e0e8ff",
+        muted="#99b2d9",
+        border="#24364f",
+        accent="#4b8cff",
+        button="#2459ed",
+        hover="#182e55",
+        selection="#233f73",
+        statement="#b5e875",
+        success="#15803d",
+        success_hover="#166534",
+        success_text="#86efac",
+        success_bg="#15382b",
+    ),
+    "light": dict(
+        bg="#f0f3f9",
+        panel="#ffffff",
+        field="#f8faff",
+        text="#1c2940",
+        muted="#596b85",
+        border="#d6deeb",
+        accent="#345fc5",
+        button="#345fc5",
+        hover="#e5edff",
+        selection="#cfdefc",
+        statement="#6b9e19",
+        success="#15803d",
+        success_hover="#166534",
+        success_text="#166534",
+        success_bg="#dcfce7",
+    ),
 }
 
 
@@ -17,15 +42,25 @@ def apply_theme(app, name):
     c = COLORS[name]
     palette = QtGui.QPalette()
     for role, color in {
-        "Window": c["bg"], "WindowText": c["text"], "Base": c["field"],
-        "AlternateBase": c["panel"], "Text": c["text"], "Button": c["panel"],
-        "ButtonText": c["text"], "Highlight": c["selection"],
-        "HighlightedText": c["text"], "PlaceholderText": c["muted"],
-        "ToolTipBase": c["panel"], "ToolTipText": c["text"], "Mid": c["border"], "Link": c["accent"],
+        "Window": c["bg"],
+        "WindowText": c["text"],
+        "Base": c["field"],
+        "AlternateBase": c["panel"],
+        "Text": c["text"],
+        "Button": c["panel"],
+        "ButtonText": c["text"],
+        "Highlight": c["selection"],
+        "HighlightedText": c["text"],
+        "PlaceholderText": c["muted"],
+        "ToolTipBase": c["panel"],
+        "ToolTipText": c["text"],
+        "Mid": c["border"],
+        "Link": c["accent"],
     }.items():
         palette.setColor(getattr(QtGui.QPalette.ColorRole, role), QtGui.QColor(color))
     app.setPalette(palette)
-    app.setStyleSheet("""
+    app.setStyleSheet(
+        """
         QWidget { color: %(text)s; }
         QMainWindow, QDialog { background: %(bg)s; }
         QLabel#brand { font-size: 25px; font-weight: 700; }
@@ -56,6 +91,11 @@ def apply_theme(app, name):
             border-radius: 7px; padding: 8px; selection-background-color: %(selection)s;
         }
         QPlainTextEdit:focus, QLineEdit:focus { border: 1px solid %(accent)s; }
+        QTabWidget::pane { border: none; }
+        QTabBar::tab { background: %(panel)s; color: %(muted)s;
+            border-bottom: 2px solid %(border)s; padding: 8px 7px; }
+        QTabBar::tab:selected { color: %(text)s; border-bottom: 2px solid %(accent)s; }
+        QTabBar::tab:hover { background: %(hover)s; }
         QPushButton { background: %(panel)s; border: 1px solid %(border)s;
                       border-radius: 7px; padding: 9px 14px; font-weight: 600; }
         QPushButton:hover { background: %(hover)s; border-color: %(accent)s; }
@@ -82,4 +122,6 @@ def apply_theme(app, name):
         QListWidget::item:hover { background: %(hover)s; }
         QSplitter::handle { background: %(bg)s; }
         QToolTip { background: %(panel)s; color: %(text)s; border: 1px solid %(border)s; }
-    """ % c)
+    """
+        % c
+    )

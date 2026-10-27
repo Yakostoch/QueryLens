@@ -1,4 +1,5 @@
 from PySide6 import QtCore, QtWidgets
+
 from app.ui.dialog.database_options_dialog import DatabaseOptionsDialog
 
 
@@ -48,9 +49,12 @@ class DatabasePanel(QtWidgets.QWidget):
         metrics = QtWidgets.QHBoxLayout()
         metrics.setSpacing(14)
         self.metric_values = {}
-        for title, caption in (("Таблицы", "Структура базы данных"),
-                               ("Индексы", "Доступные индексы"), ("Размер БД", "Объём данных")):
-            card, body = self.make_card(title)
+        for title, caption in (
+            ("Таблицы", "Структура базы данных"),
+            ("Индексы", "Доступные индексы"),
+            ("Размер БД", "Объём данных"),
+        ):
+            card, body = self.make_card("Объекты БД" if title == "Таблицы" else title)
             value = QtWidgets.QLabel("—")
             value.setObjectName("metricValue")
             self.metric_values[title] = value
@@ -64,15 +68,21 @@ class DatabasePanel(QtWidgets.QWidget):
         split.setChildrenCollapsible(False)
         split.setHandleWidth(12)
         self.tables = QtWidgets.QTreeWidget()
-        self.tables.setHeaderLabels(["Таблица / поле", "Поля / тип", "Индексы / NULL"])
+        self.tables.setHeaderLabels(["Объект / поле", "Поля / тип", "Индексы / NULL"])
         self.tables.setRootIsDecorated(True)
         self.tables.setAccessibleName("Структура базы данных")
         self.tables.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self.tables.header().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
-        self.tables.header().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        self.tables.header().setSectionResizeMode(
+            1, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.tables.header().setSectionResizeMode(
+            2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+        )
         structure, structure_layout = self.make_card("Структура базы данных")
         structure_layout.addWidget(self.tables, 1)
-        structure_hint = QtWidgets.QLabel("Включите «Структура и статистика БД», чтобы получить таблицы и индексы.")
+        structure_hint = QtWidgets.QLabel(
+            "Включите «Структура и статистика БД», чтобы получить таблицы и индексы."
+        )
         structure_hint.setWordWrap(True)
         structure_hint.setObjectName("muted")
         structure_layout.addWidget(structure_hint)
@@ -81,9 +91,13 @@ class DatabasePanel(QtWidgets.QWidget):
         self.report = QtWidgets.QPlainTextEdit()
         self.report.setReadOnly(True)
         self.report.setAccessibleName("Отчёт PostgreSQL")
-        self.report.setPlaceholderText("Нажмите «Собрать показатели».\nЗдесь появятся выбранные данные PostgreSQL.")
+        self.report.setPlaceholderText(
+            "Нажмите «Собрать показатели».\nЗдесь появятся выбранные данные PostgreSQL."
+        )
         report_layout.addWidget(self.report, 1)
-        preview = QtWidgets.QLabel("Отчёт хранится в памяти · Ресурсы компьютера — на вкладке «Ресурсы»")
+        preview = QtWidgets.QLabel(
+            "Отчёт хранится в памяти · Ресурсы компьютера — на вкладке «Ресурсы»"
+        )
         preview.setObjectName("muted")
         preview.setWordWrap(True)
         report_layout.addWidget(preview)
@@ -110,7 +124,9 @@ class DatabasePanel(QtWidgets.QWidget):
             selected.append("конфигурация PostgreSQL")
         if self.metadata_option.isChecked():
             selected.append("структура: " + self.metadata_scope.currentText().lower())
-        self.options_summary.setText("Выбрано: " + ", ".join(selected) if selected else "Ничего не выбрано")
+        self.options_summary.setText(
+            "Выбрано: " + ", ".join(selected) if selected else "Ничего не выбрано"
+        )
 
     def clear_report(self):
         self.report.clear()
@@ -135,7 +151,14 @@ class DatabasePanel(QtWidgets.QWidget):
                 )
                 self.tables.addTopLevelItem(item)
                 for field in row.get("fields", []):
-                    item.addChild(QtWidgets.QTreeWidgetItem(
-                        [field["name"], field["type"], "NULL" if field["nullable"] else "NOT NULL"]))
+                    item.addChild(
+                        QtWidgets.QTreeWidgetItem(
+                            [
+                                field["name"],
+                                field["type"],
+                                "NULL" if field["nullable"] else "NOT NULL",
+                            ]
+                        )
+                    )
                 if db.get("metadata_scope") == "query":
                     item.setExpanded(True)

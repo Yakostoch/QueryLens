@@ -33,8 +33,13 @@ class CollectorTests(unittest.TestCase):
             self.assertIn("default_transaction_read_only=on", connect.call_args.kwargs["options"])
 
     def test_module_failure_does_not_discard_hardware_or_leak_error(self):
-        with patch("app.services.collection_service.collect_postgres", side_effect=RuntimeError("secret")), \
-                patch("app.services.collection_service.collect_system", return_value={"samples": []}):
+        with (
+            patch(
+                "app.services.collection_service.collect_postgres",
+                side_effect=RuntimeError("secret"),
+            ),
+            patch("app.services.collection_service.collect_system", return_value={"samples": []}),
+        ):
             report = collect_report({"password": "secret"}, True, True)
         self.assertEqual(report["errors"], {"postgres": "RuntimeError"})
         self.assertIsNotNone(report["system"])
@@ -42,8 +47,12 @@ class CollectorTests(unittest.TestCase):
 
     def test_missing_counters_and_reset_are_not_zero(self):
         self.assertIsNone(io_rates(None, {}, 1))
-        before = {"disk": SimpleNamespace(read_bytes=100, write_bytes=100, read_count=10, write_count=10)}
-        after = {"disk": SimpleNamespace(read_bytes=50, write_bytes=300, read_count=5, write_count=20)}
+        before = {
+            "disk": SimpleNamespace(read_bytes=100, write_bytes=100, read_count=10, write_count=10)
+        }
+        after = {
+            "disk": SimpleNamespace(read_bytes=50, write_bytes=300, read_count=5, write_count=20)
+        }
         rates = io_rates(before, after, 2)["disk"]
         self.assertIsNone(rates["read_bytes_per_second"])
         self.assertEqual(rates["write_bytes_per_second"], 100)
@@ -57,14 +66,19 @@ class CollectionInterfaceTests(unittest.TestCase):
 
     def setUp(self):
         from analysis_support import connect_fake_database
+
         self.temp = tempfile.TemporaryDirectory()
-        preferences = Preferences(QtCore.QSettings(str(Path(self.temp.name) / "settings.ini"),
-                                                  QtCore.QSettings.Format.IniFormat))
+        preferences = Preferences(
+            QtCore.QSettings(
+                str(Path(self.temp.name) / "settings.ini"), QtCore.QSettings.Format.IniFormat
+            )
+        )
         self.window = MainWindow(self.temp.name, preferences)
         connect_fake_database(self.window.controller)
 
     def wait_collection(self):
         import time
+
         for _ in range(200):
             self.app.processEvents()
             if not self.window.controller.collection.busy:
@@ -80,13 +94,20 @@ class CollectionInterfaceTests(unittest.TestCase):
     def test_database_options_control_sources_without_collecting_hardware(self):
         self.window.database_panel.config_option.setChecked(False)
         self.window.navigate(1)
-        with patch("app.services.collection_service.collect_postgres", return_value={}) as postgres, \
-                patch("app.services.collection_service.collect_system") as system:
+        with (
+            patch("app.services.collection_service.collect_postgres", return_value={}) as postgres,
+            patch("app.services.collection_service.collect_system") as system,
+        ):
             self.window.start_collection()
             self.assertFalse(self.window.database_panel.run_button.isEnabled())
             self.wait_collection()
-        postgres.assert_called_once_with(self.window.controller.connection.parameters, config=False, metadata=True,
-                                         scope="database", sql="")
+        postgres.assert_called_once_with(
+            self.window.controller.connection.parameters,
+            config=False,
+            metadata=True,
+            scope="database",
+            sql="",
+        )
         system.assert_not_called()
         self.assertEqual(self.window.controller.history.store.search(), [])
         self.window.database_panel.metadata_option.setChecked(False)
@@ -94,6 +115,7 @@ class CollectionInterfaceTests(unittest.TestCase):
 
     def test_close_during_collection_waits_for_worker_without_blocking(self):
         import threading
+
         entered, release = threading.Event(), threading.Event()
 
         def collect(*args, **kwargs):
@@ -116,6 +138,7 @@ class CollectionInterfaceTests(unittest.TestCase):
 
     def test_current_query_scope_uses_editor_statement_and_empty_sql_is_rejected(self):
         from PySide6 import QtGui
+
         panel = self.window.database_panel
         panel.metadata_scope.setCurrentIndex(0)
         self.window.editor.setPlainText("SELECT 1; SELECT name FROM users;")

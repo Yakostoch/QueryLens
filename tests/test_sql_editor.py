@@ -1,14 +1,15 @@
-from analysis_support import connect_fake_database, wait_analysis
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
+from analysis_support import connect_fake_database, wait_analysis
+
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from PySide6 import QtCore, QtGui, QtTest, QtWidgets
 
-from app.sql_context import scan_sql, qt_position, python_position
+from app.sql_context import python_position, qt_position, scan_sql
 from app.storage.preferences import Preferences
 from app.ui.main_window import MainWindow
 from app.ui.widgets.sql_editor import SqlEditor
@@ -93,7 +94,9 @@ class EditorTests(unittest.TestCase):
 
     def test_only_active_sql_is_saved_and_theme_keeps_result(self):
         with tempfile.TemporaryDirectory() as directory:
-            settings = QtCore.QSettings(str(Path(directory) / "settings.ini"), QtCore.QSettings.Format.IniFormat)
+            settings = QtCore.QSettings(
+                str(Path(directory) / "settings.ini"), QtCore.QSettings.Format.IniFormat
+            )
             window = MainWindow(directory, Preferences(settings))
             connect_fake_database(window.controller)
             try:

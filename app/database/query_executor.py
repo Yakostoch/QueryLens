@@ -9,7 +9,7 @@ class QueryExecutor:
         from psycopg.rows import dict_row
 
         with self.connection.cursor(row_factory=dict_row) as cursor:
-            # Extended protocol rejects multiple commands, including SQL from the editor.
+            # Расширенный протокол не допускает несколько команд в одном вызове.
             cursor.execute(query, parameters, prepare=True)
             return cursor.fetchall()
 
@@ -19,3 +19,8 @@ class QueryExecutor:
         with self.connection.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query, parameters, prepare=True)
             return cursor.fetchone()
+
+    def execute(self, query, parameters=None):
+        """Выполняет команду без получения набора строк."""
+        with self.connection.cursor() as cursor:
+            cursor.execute(query, parameters, prepare=True)

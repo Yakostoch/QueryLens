@@ -1,10 +1,11 @@
-from analysis_support import connect_fake_database, wait_analysis
 import os
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+from analysis_support import connect_fake_database, wait_analysis
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
@@ -30,10 +31,18 @@ class ControllerTests(unittest.TestCase):
         controller.failed.connect(failures.append)
         controller.connected.connect(connected.append)
         controller.tested.connect(lambda: tested.append(True))
-        parameters = dict(host=" localhost ", database=" demo ", user=" reader ",
-                          password="secret", port=5432, sslmode="prefer")
+        parameters = dict(
+            host=" localhost ",
+            database=" demo ",
+            user=" reader ",
+            password="secret",
+            port=5432,
+            sslmode="prefer",
+        )
         first, probe, replacement = Mock(), Mock(), Mock()
-        with patch.object(service, "connect", side_effect=[first, probe, RuntimeError("secret"), replacement]):
+        with patch.object(
+            service, "connect", side_effect=[first, probe, RuntimeError("secret"), replacement]
+        ):
             controller.connect_database(parameters)
             controller.connect_database(parameters, test_only=True)
             probe.close.assert_called_once()
@@ -57,7 +66,9 @@ class ControllerTests(unittest.TestCase):
     def test_dialog_only_emits_input_without_opening_database(self):
         dialog = ConnectionDialog()
         requests = []
-        dialog.connection_requested.connect(lambda parameters, test: requests.append((parameters, test)))
+        dialog.connection_requested.connect(
+            lambda parameters, test: requests.append((parameters, test))
+        )
         dialog.database.setText("demo")
         dialog.user.setText("reader")
         with patch("app.services.database_service.connect_postgresql") as connect:
@@ -70,8 +81,11 @@ class ControllerTests(unittest.TestCase):
 
     def test_workspace_analysis_history_failure_and_close_without_window(self):
         with tempfile.TemporaryDirectory() as directory:
-            preferences = Preferences(QtCore.QSettings(str(Path(directory) / "settings.ini"),
-                                                      QtCore.QSettings.Format.IniFormat))
+            preferences = Preferences(
+                QtCore.QSettings(
+                    str(Path(directory) / "settings.ini"), QtCore.QSettings.Format.IniFormat
+                )
+            )
             controller = WorkspaceController(directory, preferences)
             connect_fake_database(controller)
             results, failures = [], []
@@ -90,7 +104,9 @@ class ControllerTests(unittest.TestCase):
             self.assertFalse(results[-1][2])
             self.assertEqual(len(controller.history.store.search()), 1)
             controller.settings.save("light", 14, True)
-            with patch.object(controller.history.store, "add", side_effect=sqlite3.OperationalError("disk full")):
+            with patch.object(
+                controller.history.store, "add", side_effect=sqlite3.OperationalError("disk full")
+            ):
                 controller.analyze("SELECT 3;")
                 wait_analysis(controller)
             self.assertIn("SELECT 3;", results[-1][1])
@@ -102,8 +118,11 @@ class ControllerTests(unittest.TestCase):
 
     def test_window_connection_dialog_wiring(self):
         with tempfile.TemporaryDirectory() as directory:
-            preferences = Preferences(QtCore.QSettings(str(Path(directory) / "settings.ini"),
-                                                      QtCore.QSettings.Format.IniFormat))
+            preferences = Preferences(
+                QtCore.QSettings(
+                    str(Path(directory) / "settings.ini"), QtCore.QSettings.Format.IniFormat
+                )
+            )
             window = MainWindow(directory, preferences)
             connection = MagicMock()
             connection.__enter__.return_value = connection
@@ -116,7 +135,9 @@ class ControllerTests(unittest.TestCase):
                 dialog.user.setText("reader")
                 dialog.connect_button.click()
 
-            with patch("app.services.database_service.connect_postgresql", return_value=connection) as connect:
+            with patch(
+                "app.services.database_service.connect_postgresql", return_value=connection
+            ) as connect:
                 QtCore.QTimer.singleShot(0, submit)
                 window.open_connection()
                 window.editor.setPlainText("SELECT 42;")
@@ -125,8 +146,10 @@ class ControllerTests(unittest.TestCase):
                 self.assertEqual(connect.call_count, 2)
                 self.assertEqual(connect.call_args.kwargs["database"], "demo")
                 self.assertEqual(connect.call_args.kwargs["user"], "reader")
-                cursor.execute.assert_called_once_with("EXPLAIN (FORMAT JSON) SELECT 42;", None, prepare=True)
-                self.assertIn('"Node Type": "Result"', window.output.toPlainText())
+                cursor.execute.assert_any_call(
+                    "EXPLAIN (VERBOSE, FORMAT JSON) SELECT 42;", None, prepare=True
+                )
+                self.assertIn('"Node Type": "Result"', window.json_output.toPlainText())
             self.assertEqual(window.connection_label.text(), "PostgreSQL: demo")
             self.assertIs(window.controller.connection.connection, connection)
             window.close()
