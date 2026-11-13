@@ -1,6 +1,8 @@
 from PySide6 import QtCore, QtWidgets
 
 from app.ui.dialog.database_options_dialog import DatabaseOptionsDialog
+from app.ui.widgets.database_report import DatabaseReportView
+from app.ui.widgets.database_structure import DatabaseStructureView
 
 
 class DatabasePanel(QtWidgets.QWidget):
@@ -67,29 +69,25 @@ class DatabasePanel(QtWidgets.QWidget):
         split = QtWidgets.QSplitter(QtCore.Qt.Orientation.Horizontal)
         split.setChildrenCollapsible(False)
         split.setHandleWidth(12)
-        self.tables = QtWidgets.QTreeWidget()
-        self.tables.setHeaderLabels(["Объект / поле", "Поля / тип", "Индексы / NULL"])
-        self.tables.setRootIsDecorated(True)
-        self.tables.setAccessibleName("Структура базы данных")
-        self.tables.header().setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
-        self.tables.header().setSectionResizeMode(
-            1, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
-        )
-        self.tables.header().setSectionResizeMode(
-            2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
-        )
+        self.tables = DatabaseStructureView()
         structure, structure_layout = self.make_card("Структура базы данных")
+        self.structure_search = QtWidgets.QLineEdit()
+        self.structure_search.setPlaceholderText("Найти таблицу, поле или тип данных…")
+        self.structure_search.setAccessibleName("Поиск по структуре базы данных")
+        self.structure_search.setClearButtonEnabled(True)
+        self.structure_search.textChanged.connect(self.tables.set_filter)
+        structure_layout.addWidget(self.structure_search)
         structure_layout.addWidget(self.tables, 1)
-        structure_hint = QtWidgets.QLabel(
-            "Включите «Структура и статистика БД», чтобы получить таблицы и индексы."
+        self.structure_hint = QtWidgets.QLabel(
+            "Соберите структуру БД, чтобы увидеть объекты и поля."
         )
-        structure_hint.setWordWrap(True)
-        structure_hint.setObjectName("muted")
-        structure_layout.addWidget(structure_hint)
+        self.structure_hint.setWordWrap(True)
+        self.structure_hint.setObjectName("muted")
+        structure_layout.addWidget(self.structure_hint)
+        self.tables.visible_count_changed.connect(self.update_structure_count)
         report, report_layout = self.make_card("Собранные факты и пояснения")
         report_layout.setSpacing(8)
-        self.report = QtWidgets.QPlainTextEdit()
-        self.report.setReadOnly(True)
+        self.report = DatabaseReportView()
         self.report.setAccessibleName("Отчёт PostgreSQL")
         self.report.setPlaceholderText(
             "Нажмите «Собрать показатели».\nЗдесь появятся выбранные данные PostgreSQL."
@@ -130,35 +128,26 @@ class DatabasePanel(QtWidgets.QWidget):
 
     def clear_report(self):
         self.report.clear()
+        self.structure_search.clear()
         self.tables.clear()
+        self.structure_hint.setText("Соберите структуру БД, чтобы увидеть объекты и поля.")
         for value in self.metric_values.values():
             value.setText("—")
 
+    def update_structure_count(self, visible, total):
+        self.structure_hint.setText(
+            f"Показано объектов: {visible} из {total} · Раскройте объект для просмотра полей."
+        )
+
     def show_report(self, report):
-        from app.services.report_formatter import format_report, size
+        from app.services.report_formatter import size
 
         self.clear_report()
-        self.report.setPlainText(format_report(report))
+        self.report.show_report(report)
         db = report["postgres"]
+        self.tables.show_structure(db)
         if db and db.get("metadata_collected", True):
             rows = db["tables"]
             self.metric_values["Таблицы"].setText(str(len(rows)))
             self.metric_values["Индексы"].setText(str(sum(row["indexes"] for row in rows)))
             self.metric_values["Размер БД"].setText(size(db.get("database_size_bytes")))
-            for row in rows:
-                item = QtWidgets.QTreeWidgetItem(
-                    [f"{row['schema']}.{row['name']}", str(row["columns"]), str(row["indexes"])]
-                )
-                self.tables.addTopLevelItem(item)
-                for field in row.get("fields", []):
-                    item.addChild(
-                        QtWidgets.QTreeWidgetItem(
-                            [
-                                field["name"],
-                                field["type"],
-                                "NULL" if field["nullable"] else "NOT NULL",
-                            ]
-                        )
-                    )
-                if db.get("metadata_scope") == "query":
-                    item.setExpanded(True)

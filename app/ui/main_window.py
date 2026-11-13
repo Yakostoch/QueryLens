@@ -1,3 +1,5 @@
+import json
+
 from PySide6 import QtCore, QtGui, QtWidgets
 
 from app.controllers.workspace_controller import WorkspaceController
@@ -6,6 +8,7 @@ from app.services.dataset_service import DatasetError, make_record, parse_report
 from app.ui.dialog.connection_dialog import ConnectionDialog
 from app.ui.dialog.settings_dialog import SettingsDialog
 from app.ui.theme import apply_theme
+from app.ui.widgets.analysis_report import AnalysisReportView
 from app.ui.widgets.database_panel import DatabasePanel
 from app.ui.widgets.history_panel import HistoryPanel
 from app.ui.widgets.icons import make_icon
@@ -102,8 +105,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.history_panel.delete_requested.connect(self.delete_query)
         self.editor = SqlEditor()
         self.editor.setAccessibleName("Редактор SQL")
-        self.output = QtWidgets.QPlainTextEdit()
-        self.output.setReadOnly(True)
+        self.output = AnalysisReportView()
         self.output.setAccessibleName("Результат анализа")
         self.output.setPlaceholderText(
             "Результаты появятся здесь\n\nВведите запрос слева и нажмите «Анализировать»."
@@ -112,12 +114,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.result_tabs = QtWidgets.QTabWidget()
         self.result_tabs.setAccessibleName("Разделы результата анализа")
         self.result_tabs.setUsesScrollButtons(True)
-        self.detail_output = QtWidgets.QPlainTextEdit()
+        self.detail_output = AnalysisReportView()
         self.json_output = QtWidgets.QPlainTextEdit()
         self.candidate_output = QtWidgets.QPlainTextEdit()
         self.result_tabs.addTab(self.output, "Кратко")
+        self.result_tabs.addTab(self.detail_output, "Подробности")
         for widget, label in (
-            (self.detail_output, "Подробности"),
             (self.json_output, "JSON"),
             (self.candidate_output, "Вариант SQL"),
         ):
@@ -443,8 +445,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def display_analysis_result(self, report):
         self.status.setToolTip("")
         presentation = present_report(report)
-        self.output.setPlainText(presentation["brief"])
-        self.detail_output.setPlainText(presentation["details"])
+        if presentation["raw"]:
+            payload = json.loads(presentation["raw"])
+            self.output.show_brief(presentation, payload)
+            self.detail_output.show_details(presentation, payload)
+        else:
+            self.output.setPlainText(presentation["brief"])
+            self.detail_output.setPlainText(presentation["details"])
         self.json_output.setPlainText(presentation["raw"])
         self.candidate_output.setPlainText(presentation["candidates"])
         self.result_tabs.setTabVisible(2, bool(presentation["raw"]))
@@ -546,9 +553,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_result_fonts(self):
         brief_font = QtGui.QFont(QtWidgets.QApplication.font())
-        brief_font.setPointSize(self.editor.font().pointSize())
+        brief_font.setPointSize(max(13, self.editor.font().pointSize()))
+        brief_font.setWeight(QtGui.QFont.Weight.DemiBold)
         self.output.setFont(brief_font)
-        for widget in (self.detail_output, self.json_output, self.candidate_output):
+        self.detail_output.setFont(brief_font)
+        for widget in (self.json_output, self.candidate_output):
             widget.setFont(self.editor.font())
 
     def show_settings_error(self, message):

@@ -17,6 +17,15 @@ COLORS = {
         success_hover="#166534",
         success_text="#86efac",
         success_bg="#15382b",
+        advice_bg="#1a2c3b",
+        advice_border="#36586f",
+        advice_text="#c0d8e8",
+        advice_hover="#243e50",
+        insufficient_bg="#482637",
+        insufficient_border="#79455d",
+        warning_bg="#342d1e",
+        warning_border="#76613a",
+        warning_text="#e7ce96",
     ),
     "light": dict(
         bg="#f0f3f9",
@@ -34,12 +43,25 @@ COLORS = {
         success_hover="#166534",
         success_text="#166534",
         success_bg="#dcfce7",
+        advice_bg="#edf3f7",
+        advice_border="#bacdd9",
+        advice_text="#36556b",
+        advice_hover="#dfeaf1",
+        insufficient_bg="#6b2b43",
+        insufficient_border="#89435d",
+        warning_bg="#fcf5e7",
+        warning_border="#dbc69b",
+        warning_text="#705625",
     ),
 }
 
 
 def apply_theme(app, name):
     c = COLORS[name]
+    font = QtGui.QFont(app.font())
+    font.setPointSize(max(11, font.pointSize()))
+    font.setWeight(QtGui.QFont.Weight.Medium)
+    app.setFont(font)
     palette = QtGui.QPalette()
     for role, color in {
         "Window": c["bg"],
@@ -67,7 +89,7 @@ def apply_theme(app, name):
         QLabel#muted, QLabel#status { color: %(muted)s; }
         QLabel#connectionState { color: %(muted)s; }
         QLabel#connectionState[connected="true"] { color: %(success_text)s; font-weight: 600; }
-        QLabel#section { font-size: 14px; font-weight: 600; }
+        QLabel#section { font-size: 17px; font-weight: 700; }
         QLabel#metricValue { font-size: 28px; font-weight: 600; color: %(accent)s; }
         QLabel#resourceValue { font-size: 23px; font-weight: 600; color: %(text)s; }
         QLabel#badge { color: %(accent)s; background: %(hover)s;
@@ -81,6 +103,54 @@ def apply_theme(app, name):
         QFrame#navigation, QFrame#connectionBar { background: %(panel)s;
             border: 1px solid %(border)s; border-radius: 9px; }
         QScrollArea#pageScroll { background: transparent; border: none; }
+        QScrollArea#analysisReport { background: %(panel)s; border: none; }
+        QScrollArea#analysisReport > QWidget > QWidget { background: %(panel)s; }
+        QFrame#reportSection { background: %(panel)s; border: 1px solid %(border)s;
+            border-radius: 9px; }
+        QToolButton#reportToggle { text-align: left; font-weight: 600;
+            border: none; border-radius: 5px; padding: 5px 0; }
+        QToolButton#reportToggle:hover { background: %(hover)s; }
+        QLabel#reportTitle { font-size: 18px; font-weight: 700; }
+        QFrame#reportHeader { border: none; border-radius: 6px; }
+        QFrame#reportSection[tone="insufficient"] {
+            background: %(insufficient_bg)s; border-color: %(insufficient_border)s; }
+        QFrame#reportSection[tone="insufficient"] QFrame#reportHeader {
+            background: transparent; }
+        QFrame#reportSection[tone="insufficient"] QLabel,
+        QFrame#reportSection[tone="insufficient"] QToolButton { color: #fff1f5; }
+        QFrame#reportSection[tone="advice"] {
+            background: %(advice_bg)s; border: 1px solid %(advice_border)s;
+            border-left: 3px solid %(advice_border)s; }
+        QFrame#reportSection[tone="advice"] QLabel,
+        QFrame#reportSection[tone="advice"] QToolButton { color: %(advice_text)s; }
+        QFrame#reportSection[tone="advice"] QToolButton#reportToggle:hover {
+            background: %(advice_hover)s; }
+        QFrame#reportWarning { background: %(warning_bg)s;
+            border: 1px solid %(warning_border)s; border-radius: 9px; }
+        QFrame#reportWarning QLabel { color: %(warning_text)s; }
+        QLabel#warningIcon { border: 2px solid %(warning_border)s;
+            border-radius: 13px; font-size: 18px; font-weight: 700; }
+        QFrame#reportMetric { background: %(field)s; border-radius: 6px; }
+        QLabel#structureSummary { color: %(muted)s; font-size: 14px; font-weight: 500; }
+        QFrame#structureField { background: %(field)s; border: 1px solid %(border)s;
+            border-radius: 7px; }
+        QLabel#structureFieldName { font-weight: 700; }
+        QLabel#structureType { color: %(accent)s; font-weight: 600; }
+        QLabel#structureNull { color: %(muted)s; background: %(panel)s;
+            border: 1px solid %(border)s; border-radius: 5px; padding: 3px 7px;
+            font-size: 12px; font-weight: 600; }
+        QLabel#structureNull[required="true"] { color: %(success_text)s;
+            background: %(success_bg)s; border-color: %(success)s; }
+        QLabel#reportMetricValue { color: %(accent)s; font-size: 20px; font-weight: 700; }
+        QLabel#planMode { color: %(accent)s; background: %(hover)s;
+            padding: 10px; border-radius: 6px; font-weight: 700; }
+        QTextBrowser#reportSql { background: %(field)s; border: 1px solid %(border)s;
+            border-radius: 6px; padding: 8px; }
+        QLabel#reportCode { background: %(field)s; padding: 10px; border-radius: 6px; }
+        QToolButton#metricInfo { color: %(accent)s; border: 1px solid %(border)s;
+            border-radius: 10px; min-width: 20px; max-width: 20px;
+            min-height: 20px; max-height: 20px; font-weight: 600; }
+        QToolButton#metricInfo:hover { background: %(hover)s; border-color: %(accent)s; }
         QScrollArea#pageScroll > QWidget > QWidget { background: %(bg)s; }
         QPushButton#navButton { background: transparent; border: 1px solid transparent;
             font-weight: 400; padding: 10px 12px; }
